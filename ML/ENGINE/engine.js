@@ -1,7 +1,7 @@
 import { FaceTracker } from './faceTracker.js';
 import { FatigueGuard } from './fatigueGuard.js';
-import { HeartRateGuard } from './heartRateGuard.js';
-import { VoiceStressMonitor } from './voiceStressMonitor.js';
+import { HeartRateGuard } from './heartrateGuard.js';
+import { VoiceStressMonitor } from './voiceMonitor.js';
 
 export class FrustrationEngine {
   constructor({
