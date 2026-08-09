@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
 import RehabSessionShell from './games/RehabSessionShell.jsx';
 
 // Updated paths to pull from the Dashboards + UI folder
@@ -7,6 +7,12 @@ import ClinicianOnboarding from '../../../Dashboards + UI/src/pages/clinician/Cl
 import PatientInvite from '../../../Dashboards + UI/src/pages/clinician/PatientInvite.jsx';
 import CaregiverAccessGrant from '../../../Dashboards + UI/src/pages/shared/CaregiverAccessGrant.jsx';
 import EvidencePage from '../../../Dashboards + UI/src/pages/shared/EvidencePage.jsx';
+
+function GamesRoute() {
+  const [params] = useSearchParams();
+  const languageSymptomsFlagged = params.get('language') === '1';
+  return <RehabSessionShell languageSymptomsFlagged={languageSymptomsFlagged} />;
+}
 
 function App() {
   return (
@@ -20,6 +26,8 @@ function App() {
             <a href="/patient-invite" style={{ display: 'block', marginTop: '1rem' }}>Go to Patient Invite</a>
             <a href="/caregiver-grant" style={{ display: 'block', marginTop: '1rem' }}>Go to Caregiver Access Grant</a>
             <a href="/evidence" style={{ display: 'block', marginTop: '1rem' }}>Go to Evidence & Guidelines</a>
+            <a href="/games" style={{ display: 'block', marginTop: '1rem' }}>Go to Rehab Games</a>
+            <a href="/games?language=1" style={{ display: 'block', marginTop: '1rem' }}>Go to Rehab Games (with Word Finding)</a>
           </div>
         } />
         
@@ -29,7 +37,7 @@ function App() {
         <Route path="/caregiver-grant" element={<CaregiverAccessGrant />} />
         <Route path="/evidence" element={<EvidencePage />} />
         
-        <Route path="/games" element={<RehabSessionShell />} />
+        <Route path="/games" element={<GamesRoute />} />
       </Routes>
     </BrowserRouter>
   );

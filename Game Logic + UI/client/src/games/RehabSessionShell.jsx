@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import NBackGame from './nback/NBackGame'
-import ReactionAttentionGame from './reactionattention/ReactionAttentionGame'
+import ReactionAttentionGame from './reactionAttention/ReactionAttentionGame'
 import SequenceRecallGame from './sequencerecall/SequenceRecallGame'
+import SpeechWordFindingGame from './speechWordFinding/SpeechWordFindingGame'
 
 /**
  * RehabSessionShell — the picker/hub screen that ties Person 1's three
@@ -26,7 +27,7 @@ import SequenceRecallGame from './sequencerecall/SequenceRecallGame'
  *   session state lives, not a local constant.
  */
 
-const GAMES = [
+const BASE_GAMES = [
   {
     id: 'n-back',
     label: 'N-Back',
@@ -50,10 +51,25 @@ const GAMES = [
   },
 ]
 
-// Stub — real value comes from Person 4's intake flow (patients.language_symptoms_flagged).
-const languageSymptomsFlagged = false
+const SPEECH_GAME = {
+  id: 'speech-word-finding',
+  label: 'Word Finding',
+  tagline: 'Speech & communication',
+  description: 'Read the cue and type the word you are searching for.',
+  Component: SpeechWordFindingGame,
+}
 
-export default function RehabSessionShell() {
+/**
+ * @param {Object} [props]
+ * @param {boolean} [props.languageSymptomsFlagged=false] — from Person 4's
+ *   intake flow (patients.language_symptoms_flagged). When true, the
+ *   Speech & Word-Finding module appears in the game picker.
+ */
+export default function RehabSessionShell({ languageSymptomsFlagged = false }) {
+  const games = useMemo(
+    () => (languageSymptomsFlagged ? [...BASE_GAMES, SPEECH_GAME] : BASE_GAMES),
+    [languageSymptomsFlagged]
+  )
   const [activeGameId, setActiveGameId] = useState(null)
   const [difficulty, setDifficulty] = useState(1)
   const [sessionLog, setSessionLog] = useState([]) // GameSessionEvent[], most recent first
@@ -64,7 +80,7 @@ export default function RehabSessionShell() {
     setLastEvent(event)
   }, [])
 
-  const activeGame = GAMES.find((g) => g.id === activeGameId) ?? null
+  const activeGame = games.find((g) => g.id === activeGameId) ?? null
 
   function handleBackToGames() {
     setActiveGameId(null)
@@ -87,24 +103,12 @@ export default function RehabSessionShell() {
       {!activeGame && (
         <>
           <div style={styles.cardGrid}>
-            {GAMES.map((game) => (
+            {games.map((game) => (
               <GameCard key={game.id} game={game} onSelect={() => setActiveGameId(game.id)} />
             ))}
-            {languageSymptomsFlagged && (
-              <GameCard
-                game={{
-                  id: 'speech-word-finding',
-                  label: 'Word Finding',
-                  tagline: 'Speech & communication',
-                  description: 'Coming soon.',
-                }}
-                disabled
-                onSelect={() => {}}
-              />
-            )}
           </div>
 
-          {sessionLog.length > 0 && <SessionHistory sessionLog={sessionLog} />}
+          {sessionLog.length > 0 && <SessionHistory sessionLog={sessionLog} games={games} />}
         </>
       )}
 
@@ -174,10 +178,10 @@ function DifficultyPicker({ difficulty, onChange }) {
  *      panel underneath, most recent first — it can hold as many rounds
  *      as the patient plays without pushing the rest of the page down.
  */
-function SessionHistory({ sessionLog }) {
-  const gameLabels = Object.fromEntries(GAMES.map((g) => [g.id, g.label]))
+function SessionHistory({ sessionLog, games }) {
+  const gameLabels = Object.fromEntries(games.map((g) => [g.id, g.label]))
 
-  const summaryByGame = GAMES.map((game) => {
+  const summaryByGame = games.map((game) => {
     const rounds = sessionLog.filter((e) => e.gameId === game.id)
     if (rounds.length === 0) return null
     const avgAccuracy = rounds.reduce((sum, e) => sum + e.accuracy, 0) / rounds.length
