@@ -36,8 +36,8 @@
  *   UX is wanted instead — that would change what accuracy means here.
  */
 
-import {  createGameSessionEvent  } from "../../shared/eventSchema.js";
-import {  getDifficultyParams  } from "../../shared/difficultyConfig.js";
+import {  createGameSessionEvent  } from "../../../../shared/eventSchema.js";
+import {  getDifficultyParams  } from "../../../../shared/difficultyConfig.js";
 
 /** Grid size (number of selectable cells) — not difficulty-varying per difficultyConfig.js. */
 const DEFAULT_GRID_SIZE = 9;
