@@ -1,46 +1,51 @@
-import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
-import RehabSessionShell from './games/RehabSessionShell.jsx';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SessionProvider, useSession } from './context/SessionContext.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import ClinicianOnboarding from './pages/clinician/ClinicianOnboarding.jsx'
+import IntakeForm from './pages/clinician/IntakeForm.jsx'
+import PatientInvite from './pages/clinician/PatientInvite.jsx'
+import CaregiverAccessGrant from './pages/shared/CaregiverAccessGrant.jsx'
+import EvidencePage from './pages/shared/EvidencePage.jsx'
+import RehabSessionShell from './games/RehabSessionShell.jsx'
 
-// Updated paths to pull from the Dashboards + UI folder
-import IntakeForm from '../../../Dashboards + UI/src/pages/clinician/IntakeForm.jsx';
-import ClinicianOnboarding from '../../../Dashboards + UI/src/pages/clinician/ClinicianOnboarding.jsx';
-import PatientInvite from '../../../Dashboards + UI/src/pages/clinician/PatientInvite.jsx';
-import CaregiverAccessGrant from '../../../Dashboards + UI/src/pages/shared/CaregiverAccessGrant.jsx';
-import EvidencePage from '../../../Dashboards + UI/src/pages/shared/EvidencePage.jsx';
+// Person 3: dashboard + privacy sandbox
+// import Dashboard from './dashboard/Dashboard.jsx'
+// import PrivacySandbox from './privacy-sandbox/PrivacySandbox.jsx'
 
+/**
+ * languageSymptomsFlagged used to arrive as a ?language=1 URL param on
+ * this route — that's gone now. RehabSessionShell resolves it internally
+ * via startPatientSession(patientId), same call that sets up the ZPD
+ * engine. All this route needs to provide is patientId, from
+ * SessionContext (see context/SessionContext.jsx — still a dev stub
+ * until Person 3 has real auth).
+ */
 function GamesRoute() {
-  const [params] = useSearchParams();
-  const languageSymptomsFlagged = params.get('language') === '1';
-  return <RehabSessionShell languageSymptomsFlagged={languageSymptomsFlagged} />;
+  const { patientId } = useSession()
+  return <RehabSessionShell patientId={patientId} />
 }
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={
-          <div style={{ padding: '2rem' }}>
-            <h1>Rehab App — home</h1>
-            <a href="/intake" style={{ display: 'block', marginTop: '1rem' }}>Go to Clinician Intake Form</a>
-            <a href="/clinician-signup" style={{ display: 'block', marginTop: '1rem' }}>Go to Clinician Signup</a>
-            <a href="/patient-invite" style={{ display: 'block', marginTop: '1rem' }}>Go to Patient Invite</a>
-            <a href="/caregiver-grant" style={{ display: 'block', marginTop: '1rem' }}>Go to Caregiver Access Grant</a>
-            <a href="/evidence" style={{ display: 'block', marginTop: '1rem' }}>Go to Evidence & Guidelines</a>
-            <a href="/games" style={{ display: 'block', marginTop: '1rem' }}>Go to Rehab Games</a>
-            <a href="/games?language=1" style={{ display: 'block', marginTop: '1rem' }}>Go to Rehab Games (with Word Finding)</a>
-          </div>
-        } />
-        
-        <Route path="/intake" element={<IntakeForm />} />
-        <Route path="/clinician-signup" element={<ClinicianOnboarding />} />
-        <Route path="/patient-invite" element={<PatientInvite />} />
-        <Route path="/caregiver-grant" element={<CaregiverAccessGrant />} />
-        <Route path="/evidence" element={<EvidencePage />} />
-        
-        <Route path="/games" element={<GamesRoute />} />
-      </Routes>
-    </BrowserRouter>
-  );
+    <SessionProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+
+          <Route path="/clinician/signup" element={<ClinicianOnboarding />} />
+          <Route path="/clinician/intake" element={<IntakeForm />} />
+          <Route path="/clinician/invite-patient" element={<PatientInvite />} />
+          <Route path="/clinician/caregiver-access" element={<CaregiverAccessGrant />} />
+
+          <Route path="/evidence" element={<EvidencePage />} />
+          <Route path="/games" element={<GamesRoute />} />
+
+          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+          {/* <Route path="/privacy-sandbox" element={<PrivacySandbox />} /> */}
+        </Routes>
+      </BrowserRouter>
+    </SessionProvider>
+  )
 }
 
-export default App;
+export default App

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function ClinicianOnboarding() {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +19,10 @@ export default function ClinicianOnboarding() {
       return;
     }
 
-    console.log("Creating Clinician Account:", { name, email, password, professional_attestation: attestation });
+    // NOTE: password intentionally excluded from this log — never log
+    // credentials, even in a hackathon demo (screen shares/recordings
+    // can leak plaintext passwords via dev tools otherwise).
+    console.log("Creating Clinician Account:", { name, email, professional_attestation: attestation });
     
     // Show a success message (Person 3 will handle the actual API call to the database later)
     setSuccessMessage(`Account created for ${name}! You can now onboard patients.`);
@@ -111,6 +116,22 @@ export default function ClinicianOnboarding() {
       {successMessage && (
         <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#e6f4ea', color: '#137333', border: '1px solid #ceead6', borderRadius: '4px' }}>
           <strong>✅ {successMessage}</strong>
+          <button
+            onClick={() => navigate('/clinician/intake')}
+            style={{
+              display: 'block',
+              backgroundColor: '#1E3A4C',
+              color: 'white',
+              border: 'none',
+              padding: '0.65rem 1.25rem',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              marginTop: '0.75rem',
+              borderRadius: '4px',
+            }}
+          >
+            Continue to Patient Intake →
+          </button>
         </div>
       )}
     </div>

@@ -1,17 +1,34 @@
 :root {
-  --color-bg: #fafafa;
-  --color-text: #1a1a1a;
-  --color-primary: #4f7cff;
-  --font-body: 'Inter', system-ui, sans-serif;
+  --harbor-bg: #F2F5F7;
+  --harbor-navy: #1E3A4C;
+  --harbor-teal: #5B8A9A;
+  --harbor-orange: #D98E5B;
+  --harbor-border: #E1E8EC;
+  --harbor-text-muted: #7C8B93;
+
+  /* legacy aliases kept for anything still referencing these directly */
+  --color-bg: var(--harbor-bg);
+  --color-text: var(--harbor-navy);
+  --color-primary: var(--harbor-orange);
+  --font-body: 'Work Sans', system-ui, sans-serif;
+  --font-heading: 'Newsreader', serif;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html, body, #root {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--harbor-bg);
+  color: var(--harbor-navy);
   font-family: var(--font-body);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
 }

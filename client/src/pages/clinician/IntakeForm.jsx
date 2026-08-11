@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { checkSafetyGate } from '../../utils/safetyGate';
 
 export default function IntakeForm() {
+  const navigate = useNavigate();
   const [injuryDate, setInjuryDate] = useState('');
   const [languageDifficulty, setLanguageDifficulty] = useState(false);
   
@@ -46,6 +48,20 @@ export default function IntakeForm() {
       setAssignedTier(null); // Clear tier if unsafe
     }
   };
+
+  function handleContinueToInvite() {
+    // Carries the intake outcome forward so PatientInvite (and eventually
+    // Person 3's backend) has it without re-asking the clinician.
+    // NOTE: this is route-state, not persisted anywhere yet — once a real
+    // patient record API exists, this payload is what should be sent to
+    // it instead of just being handed to the next screen in memory.
+    navigate('/clinician/invite-patient', {
+      state: {
+        languageSymptomsFlagged: languageDifficulty,
+        difficultyTier: assignedTier,
+      },
+    });
+  }
 
   // Helper for rendering sliders
   const renderSlider = (label, value, setValue) => (
@@ -121,9 +137,26 @@ export default function IntakeForm() {
         }}>
           <strong>{statusMessage}</strong>
           {isSafe && assignedTier && (
-            <p style={{ marginTop: '0.5rem', color: '#1E3A4C' }}>
-              🎯 <strong>Calculated Starting Difficulty Tier: {assignedTier} / 5</strong>
-            </p>
+            <>
+              <p style={{ marginTop: '0.5rem', color: '#1E3A4C' }}>
+                🎯 <strong>Calculated Starting Difficulty Tier: {assignedTier} / 5</strong>
+              </p>
+              <button
+                onClick={handleContinueToInvite}
+                style={{
+                  backgroundColor: '#1E3A4C',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.65rem 1.25rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  marginTop: '0.75rem',
+                  borderRadius: '4px',
+                }}
+              >
+                Continue to Patient Invite →
+              </button>
+            </>
           )}
         </div>
       )}
