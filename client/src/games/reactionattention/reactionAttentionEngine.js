@@ -30,8 +30,8 @@
  *       responded" both mean the trial's reaction demand wasn't met in time.
  */
 
-import {  createGameSessionEvent  } from "../../shared/eventSchema.js";
-import {  getDifficultyParams  } from "../../shared/difficultyConfig.js";
+import {  createGameSessionEvent  } from "../../../../shared/eventSchema.js";
+import {  getDifficultyParams  } from "../../../../shared/difficultyConfig.js";
 
 /** Total trials per round. */
 const DEFAULT_TRIAL_COUNT = 24;

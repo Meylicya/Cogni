@@ -207,7 +207,7 @@ const cssVars = `
 
 const styles = {
   container: {
-    background: 'var(--harbor-bg)',
+    background: '#fff',
     borderRadius: 16,
     padding: '2.5rem 2rem',
     maxWidth: 440,

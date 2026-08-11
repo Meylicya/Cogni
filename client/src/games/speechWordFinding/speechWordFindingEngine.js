@@ -21,8 +21,8 @@
  *   without this engine needing to know about audio.
  */
 
-import { createGameSessionEvent } from "../../shared/eventSchema.js";
-import { getDifficultyParams } from "../../shared/difficultyConfig.js";
+import { createGameSessionEvent } from "../../../../shared/eventSchema.js";
+import { getDifficultyParams } from "../../../../shared/difficultyConfig.js";
 import { WORD_FINDING_PROMPTS } from "./wordFindingPrompts.js";
 
 const PHASES = Object.freeze({

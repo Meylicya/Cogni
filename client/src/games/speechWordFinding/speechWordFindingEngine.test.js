@@ -16,7 +16,7 @@ import {
   buildSessionEvent,
 } from "./speechWordFindingEngine.js";
 
-import { validateGameSessionEvent } from "../../shared/eventSchema.js";
+import { validateGameSessionEvent } from "../../../../shared/eventSchema.js";
 import { WORD_FINDING_PROMPTS } from "./wordFindingPrompts.js";
 
 function makeQueueRandom(values) {

@@ -32,8 +32,8 @@
  *   difficultyConfig.js change, not something to sneak in unilaterally.
  */
 
-import {  createGameSessionEvent  } from "../../shared/eventSchema.js";
-import {  getDifficultyParams  } from "../../shared/difficultyConfig.js";
+import {  createGameSessionEvent  } from "../../../../shared/eventSchema.js";
+import {  getDifficultyParams  } from "../../../../shared/difficultyConfig.js";
 
 /** How many stimulus symbols exist to choose from (e.g. 8 distinct letters/shapes). */
 const DEFAULT_STIMULUS_SET_SIZE = 8;

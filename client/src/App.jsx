@@ -1,0 +1,51 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { SessionProvider, useSession } from './context/SessionContext.jsx'
+import LandingPage from './pages/LandingPage.jsx'
+import ClinicianOnboarding from './pages/clinician/ClinicianOnboarding.jsx'
+import IntakeForm from './pages/clinician/IntakeForm.jsx'
+import PatientInvite from './pages/clinician/PatientInvite.jsx'
+import CaregiverAccessGrant from './pages/shared/CaregiverAccessGrant.jsx'
+import EvidencePage from './pages/shared/EvidencePage.jsx'
+import RehabSessionShell from './games/RehabSessionShell.jsx'
+
+// Person 3: dashboard + privacy sandbox
+// import Dashboard from './dashboard/Dashboard.jsx'
+// import PrivacySandbox from './privacy-sandbox/PrivacySandbox.jsx'
+
+/**
+ * languageSymptomsFlagged used to arrive as a ?language=1 URL param on
+ * this route — that's gone now. RehabSessionShell resolves it internally
+ * via startPatientSession(patientId), same call that sets up the ZPD
+ * engine. All this route needs to provide is patientId, from
+ * SessionContext (see context/SessionContext.jsx — still a dev stub
+ * until Person 3 has real auth).
+ */
+function GamesRoute() {
+  const { patientId } = useSession()
+  return <RehabSessionShell patientId={patientId} />
+}
+
+function App() {
+  return (
+    <SessionProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+
+          <Route path="/clinician/signup" element={<ClinicianOnboarding />} />
+          <Route path="/clinician/intake" element={<IntakeForm />} />
+          <Route path="/clinician/invite-patient" element={<PatientInvite />} />
+          <Route path="/clinician/caregiver-access" element={<CaregiverAccessGrant />} />
+
+          <Route path="/evidence" element={<EvidencePage />} />
+          <Route path="/games" element={<GamesRoute />} />
+
+          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+          {/* <Route path="/privacy-sandbox" element={<PrivacySandbox />} /> */}
+        </Routes>
+      </BrowserRouter>
+    </SessionProvider>
+  )
+}
+
+export default App

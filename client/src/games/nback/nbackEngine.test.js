@@ -16,7 +16,7 @@ import {
   buildSessionEvent,
 } from "./nbackEngine.js";
 
-import { validateGameSessionEvent } from "../../shared/eventSchema.js";
+import { validateGameSessionEvent } from "../../../../shared/eventSchema.js";
 
 function makeQueueRandom(values) {
   let i = 0;
