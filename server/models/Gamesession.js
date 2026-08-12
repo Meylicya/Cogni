@@ -15,13 +15,15 @@ const gameSessionSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  accuracy: {
-    type: Number, // round summary, 0–1
-    required: true,
-  },
-  avgLatencyMs: {
-    type: Number,
-    required: true,
+  // Client-side AES-GCM ciphertext of { accuracy, avgLatencyMs, errorType }.
+  // The server never sees these values in plaintext — decryption only
+  // happens client-side (patient app or, later, an authorized caregiver/
+  // clinician dashboard holding the matching key). See client/src/sync/
+  // webCrypto.js for the encrypt/decrypt implementation and its
+  // documented key-management limitations.
+  encryptedScores: {
+    ciphertext: { type: String, required: true },
+    iv: { type: String, required: true },
   },
   completedAt: {
     type: Date,

@@ -3,6 +3,7 @@ import NBackGame from './nback/NBackGame'
 import ReactionAttentionGame from './reactionAttention/ReactionAttentionGame'
 import SequenceRecallGame from './sequencerecall/SequenceRecallGame'
 import SpeechWordFindingGame from './speechWordFinding/SpeechWordFindingGame'
+import { syncGameEvent } from '../sync/syncLayer'
 
 /**
  * RehabSessionShell — the picker/hub screen that ties Person 1's three
@@ -75,11 +76,18 @@ export default function RehabSessionShell({ languageSymptomsFlagged = false }) {
   const [sessionLog, setSessionLog] = useState([]) // GameSessionEvent[], most recent first
   const [lastEvent, setLastEvent] = useState(null)
 
-  const handleGameEvent = useCallback((event) => {
-    setSessionLog((prev) => [event, ...prev])
-    setLastEvent(event)
-  }, [])
+const handleGameEvent = useCallback((event) => {
+  setSessionLog((prev) => [event, ...prev])
+  setLastEvent(event)
 
+  syncGameEvent(event).then((result) => {
+    if (!result.ok) {
+      // TODO: surface this more visibly once there's a UI spot for sync
+      // status (e.g. the Privacy Sandbox panel, or a small toast).
+      console.warn('Game session sync failed:', result.error)
+    }
+  })
+}, [])
   const activeGame = games.find((g) => g.id === activeGameId) ?? null
 
   function handleBackToGames() {
