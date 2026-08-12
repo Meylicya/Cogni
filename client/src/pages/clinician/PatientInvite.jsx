@@ -1,92 +1,67 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Toast from '../../components/Toast.jsx';
 
 export default function PatientInvite({ clinicianId }) {
   const navigate = useNavigate();
   const [patientEmail, setPatientEmail] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
-  const [invitedEmail, setInvitedEmail] = useState('');
+  const [toast, setToast] = useState(null); // { message } | null
+  const [sent, setSent] = useState(false); // once true, show follow-up actions
 
   const handleGenerateInvite = (e) => {
     e.preventDefault();
-    
-    // Clean payload for Person 3's backend to process the JWT magic link
-    const payload = {
-        clinicianId: clinicianId,
-        patientEmail: patientEmail
-    };
 
+    const payload = { clinicianId, patientEmail };
     console.log("Triggering Invite API:", payload);
-    
-    setStatusMessage(`Invite request for ${patientEmail} sent to backend.`);
-    setInvitedEmail(patientEmail);
+
+    setToast({ message: `Invite sent to ${patientEmail}.` });
+    setSent(true);
     setPatientEmail('');
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '500px', margin: '0 auto', fontFamily: 'Work Sans, sans-serif' }}>
-      <h2 style={{ color: '#1E3A4C', fontFamily: 'Newsreader, serif' }}>Invite Patient</h2>
-      <p style={{ color: '#5B8A9A' }}>
-        Request a secure magic link to allow the patient to set up their own credentials.
-      </p>
-      
-      <form onSubmit={handleGenerateInvite} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: '#F2F5F7', padding: '2rem', borderRadius: '8px' }}>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Patient Email:</strong>
-          <input 
-            type="email" 
+    <div style={styles.page}>
+      {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
+
+      <div style={styles.header}>
+        <h2 style={styles.heading}>Invite Patient</h2>
+        <p style={styles.subheading}>
+          Request a secure magic link to allow the patient to set up their own credentials.
+        </p>
+      </div>
+
+      <form onSubmit={handleGenerateInvite} className="harbor-card harbor-fade-in" style={styles.form}>
+        <div className="harbor-field">
+          <label className="harbor-label">Patient Email</label>
+          <input
+            type="email"
+            className="harbor-input"
             value={patientEmail}
             onChange={(e) => setPatientEmail(e.target.value)}
             required
-            style={{ padding: '0.5rem' }}
           />
-        </label>
+        </div>
 
-        <button 
-          type="submit" 
-          style={{ 
-            backgroundColor: '#1E3A4C', 
-            color: 'white', 
-            border: 'none', 
-            padding: '0.75rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer', 
-            marginTop: '1rem',
-            borderRadius: '4px'
-          }}>
+        <button type="submit" className="harbor-btn harbor-btn-dark" style={{ marginTop: 4 }}>
           Request Magic Link
         </button>
       </form>
 
-      {statusMessage && (
-        <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#e8f0fe', border: '1px solid #c6dafc', borderRadius: '4px', color: '#1E3A4C' }}>
-          <strong>{statusMessage}</strong>
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+      {sent && (
+        <div className="harbor-card harbor-fade-in" style={styles.followUpCard}>
+          <p style={styles.followUpText}>What's next for this patient?</p>
+          <div style={styles.followUpActions}>
             <button
-              onClick={() => navigate('/clinician/caregiver-access', { state: { invitedEmail } })}
-              style={{
-                backgroundColor: '#1E3A4C',
-                color: 'white',
-                border: 'none',
-                padding: '0.6rem 1.1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                borderRadius: '4px',
-              }}
+              className="harbor-btn harbor-btn-dark"
+              onClick={() => navigate('/clinician/caregiver-access')}
+              style={{ width: '100%' }}
             >
               Grant caregiver access →
             </button>
             <button
+              className="harbor-btn harbor-btn-outline"
               onClick={() => navigate('/')}
-              style={{
-                backgroundColor: '#fff',
-                color: '#1E3A4C',
-                border: '1px solid #D9E1E6',
-                padding: '0.6rem 1.1rem',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                borderRadius: '4px',
-              }}
+              style={{ width: '100%' }}
             >
               Done for now
             </button>
@@ -95,4 +70,49 @@ export default function PatientInvite({ clinicianId }) {
       )}
     </div>
   );
+}
+
+const styles = {
+  page: {
+    padding: '3rem 1.5rem',
+    maxWidth: 480,
+    margin: '0 auto',
+    fontFamily: "'Work Sans', sans-serif",
+  },
+  header: {
+    marginBottom: '1.75rem',
+    textAlign: 'center',
+  },
+  heading: {
+    color: '#1E3A4C',
+    fontFamily: "'Newsreader', serif",
+    fontSize: 30,
+    margin: '0 0 8px',
+  },
+  subheading: {
+    color: '#5B8A9A',
+    fontSize: 14,
+    margin: 0,
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.1rem',
+    padding: '2rem',
+  },
+  followUpCard: {
+    marginTop: '1.25rem',
+    padding: '1.5rem',
+    textAlign: 'center',
+  },
+  followUpText: {
+    fontSize: 13,
+    color: '#7C8B93',
+    margin: '0 0 14px',
+  },
+  followUpActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
 }

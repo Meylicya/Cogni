@@ -7,16 +7,17 @@ export default function EvidencePage() {
         Evidence & Guidelines
       </h2>
       
-      <section style={{ backgroundColor: '#F2F5F7', padding: '1.5rem', borderRadius: '8px', marginBottom: '2rem', borderLeft: '4px solid #D98E5B' }}>
-        <h3 style={{ marginTop: 0, fontFamily: 'Newsreader, serif' }}>Clinical Positioning & Safety</h3>
-        <p style={{ lineHeight: '1.6' }}>
+      <section style={{ backgroundColor: '#fff', padding: '1.5rem', borderRadius: '14px', marginBottom: '2rem', border: '1px solid #E1E8EC', borderLeft: '4px solid #D98E5B' }}>
+        <h3 style={{ marginTop: 0, fontFamily: 'Newsreader, serif', color: '#1E3A4C' }}>Clinical Positioning & Safety</h3>
+        <p style={{ lineHeight: '1.6', color: '#4A5A64' }}>
           This application is an active, adaptive cognitive rehabilitation tool designed explicitly for the <strong>sub-acute and persistent-symptom phases</strong> of concussion recovery under clinician supervision. It is strictly <strong>not a diagnostic tool</strong>, nor is it intended for acute injury management (first 0–48 hours). In accordance with responsible medical software design, we honestly represent that evidence for the transfer of cognitive training beyond the directly trained tasks remains limited. This tool is intended to complement, not replace, comprehensive professional care.
         </p>
       </section>
 
       <section>
         <h3 style={{ fontFamily: 'Newsreader, serif', color: '#5B8A9A' }}>Verified Research Citations</h3>
-        <ul style={{ lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ backgroundColor: '#fff', border: '1px solid #E1E8EC', borderRadius: '14px', padding: '1.5rem 1.75rem' }}>
+        <ul style={{ lineHeight: '1.6', display: 'flex', flexDirection: 'column', gap: '1rem', margin: 0, color: '#4A5A64' }}>
           {/* Originally Verified Citations */}
           <li>
             <strong>Bayley, M. T., et al. (2023).</strong> INCOG 2.0 Guidelines for Cognitive Rehabilitation Following Traumatic Brain Injury: Methods, Overview, and Principles. <em>Journal of Head Trauma Rehabilitation</em>, 38(1), 7–23.
@@ -72,6 +73,7 @@ export default function EvidencePage() {
             <strong>Cottingham, M. E., & Boone, K. B. (2010).</strong> Non-credible language deficits following mild traumatic brain injury. <em>The Clinical Neuropsychologist</em>, 24(6), 1006–1025.
           </li>
         </ul>
+        </div>
       </section>
     </div>
   );

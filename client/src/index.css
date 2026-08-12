@@ -32,3 +32,160 @@ body {
 h1, h2, h3, h4 {
   font-family: var(--font-heading);
 }
+
+/* ============================================================
+   Shared "Harbor" form system — used across clinician/caregiver
+   pages so inputs, buttons, and cards feel like one product
+   instead of each page inventing its own look. Pseudo-states
+   (focus/hover) can't be done with inline React styles, which is
+   why these live here as real CSS classes.
+   ============================================================ */
+
+.harbor-card {
+  background: #fff;
+  border: 1px solid var(--harbor-border);
+  border-radius: 14px;
+}
+
+.harbor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.harbor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--harbor-navy);
+}
+
+.harbor-input {
+  padding: 11px 14px;
+  font-size: 15px;
+  font-family: var(--font-body);
+  border: 1.5px solid var(--harbor-border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--harbor-navy);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.harbor-input:hover {
+  border-color: var(--harbor-teal);
+}
+
+.harbor-input:focus {
+  border-color: var(--harbor-orange);
+  box-shadow: 0 0 0 3px rgba(217, 142, 91, 0.18);
+}
+
+.harbor-input::placeholder {
+  color: #A9B7BE;
+}
+
+.harbor-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--harbor-orange);
+  cursor: pointer;
+}
+
+.harbor-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--harbor-border);
+  outline: none;
+  transition: background 0.15s ease;
+}
+
+.harbor-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--harbor-orange);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(30, 58, 76, 0.25);
+  transition: transform 0.12s ease;
+}
+
+.harbor-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.harbor-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--harbor-orange);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 1px 4px rgba(30, 58, 76, 0.25);
+}
+
+.harbor-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.harbor-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 76, 0.15);
+}
+
+.harbor-btn:active {
+  transform: translateY(0);
+}
+
+.harbor-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+.harbor-btn-primary {
+  background: var(--harbor-orange);
+  color: #fff;
+}
+
+.harbor-btn-dark {
+  background: var(--harbor-navy);
+  color: #fff;
+}
+
+.harbor-btn-outline {
+  background: #fff;
+  color: var(--harbor-navy);
+  border: 1.5px solid var(--harbor-border);
+}
+
+.harbor-fade-in {
+  animation: harbor-fade-in 0.25s ease;
+}
+
+@keyframes harbor-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.harbor-toast-enter {
+  animation: harbor-toast-in 0.25s ease;
+}
+
+@keyframes harbor-toast-in {
+  from { opacity: 0; transform: translateY(-10px) translateX(-50%); }
+  to { opacity: 1; transform: translateY(0) translateX(-50%); }
+}

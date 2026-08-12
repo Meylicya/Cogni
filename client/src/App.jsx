@@ -6,6 +6,7 @@ import IntakeForm from './pages/clinician/IntakeForm.jsx'
 import PatientInvite from './pages/clinician/PatientInvite.jsx'
 import CaregiverAccessGrant from './pages/shared/CaregiverAccessGrant.jsx'
 import EvidencePage from './pages/shared/EvidencePage.jsx'
+import AcceptInvite from './pages/patient/AcceptInvite.jsx'
 import RehabSessionShell from './games/RehabSessionShell.jsx'
 
 // Person 3: dashboard + privacy sandbox
@@ -39,6 +40,7 @@ function App() {
 
           <Route path="/evidence" element={<EvidencePage />} />
           <Route path="/games" element={<GamesRoute />} />
+          <Route path="/invite/:token" element={<AcceptInvite />} />
 
           {/* <Route path="/dashboard" element={<Dashboard />} /> */}
           {/* <Route path="/privacy-sandbox" element={<PrivacySandbox />} /> */}

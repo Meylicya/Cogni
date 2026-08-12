@@ -1,93 +1,126 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Toast from '../../components/Toast.jsx';
 
 export default function CaregiverAccessGrant({ patientId, patientName }) {
+  const navigate = useNavigate();
   const [caregiverEmail, setCaregiverEmail] = useState('');
   const [relationship, setRelationship] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [toast, setToast] = useState(null);
 
   const handleGrantAccess = (e) => {
     e.preventDefault();
-    
-    // Clean payload ready for Person 3's backend API to consume
-    const payload = {
-        patientId: patientId, 
-        caregiverEmail: caregiverEmail, 
-        relationshipLabel: relationship
-    };
-    
+
+    const payload = { patientId, caregiverEmail, relationshipLabel: relationship };
     console.log("Sending to API:", payload);
 
-    setStatusMessage(`Access request for ${caregiverEmail} sent to backend.`);
-    
+    setToast({ message: `Access granted for ${caregiverEmail}.` });
     setCaregiverEmail('');
     setRelationship('');
   };
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '500px', margin: '0 auto', fontFamily: 'Work Sans, sans-serif' }}>
-      <h2 style={{ color: '#1E3A4C', fontFamily: 'Newsreader, serif' }}>Authorize Caregiver Access</h2>
-      <p style={{ color: '#5B8A9A' }}>
-        Securely grant a caregiver read-only access to a patient's recovery dashboard. 
-      </p>
-      
-      <div style={{ backgroundColor: '#fce8e6', padding: '1rem', borderRadius: '4px', border: '1px solid #fad2cf', marginBottom: '1.5rem' }}>
-        <strong style={{ color: '#c5221f', fontSize: '0.9rem' }}>🔒 Security & Privacy Notice</strong>
-        <p style={{ fontSize: '0.85rem', color: '#c5221f', marginTop: '0.5rem', marginBottom: 0 }}>
-          Caregivers cannot request or self-assign access. This link must be explicitly granted by the patient's clinician or the patient themselves.
+    <div style={styles.page}>
+      {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
+
+      <div style={styles.header}>
+        <h2 style={styles.heading}>Authorize Caregiver Access</h2>
+        <p style={styles.subheading}>
+          Securely grant a caregiver read-only access to a patient's recovery dashboard.
         </p>
       </div>
 
-      <form onSubmit={handleGrantAccess} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: '#F2F5F7', padding: '2rem', borderRadius: '8px' }}>
-        
-        {/* Only displays if the parent component actually passed the prop */}
+      <div style={styles.noticeBox}>
+        <strong style={{ color: '#c5221f', fontSize: 13.5 }}>🔒 Security & Privacy Notice</strong>
+        <p style={{ fontSize: 13, color: '#c5221f', margin: '6px 0 0' }}>
+          Caregivers cannot request or self-assign access. This link must be explicitly granted by
+          the patient's clinician or the patient themselves.
+        </p>
+      </div>
+
+      <form onSubmit={handleGrantAccess} className="harbor-card harbor-fade-in" style={styles.form}>
         {patientName && (
-           <div style={{ color: '#1E3A4C', fontSize: '0.95rem' }}>
-             Granting access for: <strong>{patientName}</strong>
-           </div>
+          <div style={{ color: '#1E3A4C', fontSize: 14 }}>
+            Granting access for: <strong>{patientName}</strong>
+          </div>
         )}
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Caregiver Email:</strong>
-          <input 
-            type="email" 
+        <div className="harbor-field">
+          <label className="harbor-label">Caregiver Email</label>
+          <input
+            type="email"
+            className="harbor-input"
             value={caregiverEmail}
             onChange={(e) => setCaregiverEmail(e.target.value)}
             required
-            style={{ padding: '0.5rem' }}
           />
-        </label>
+        </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Relationship to Patient (Optional):</strong>
-          <input 
-            type="text" 
+        <div className="harbor-field">
+          <label className="harbor-label">Relationship to Patient (Optional)</label>
+          <input
+            type="text"
+            className="harbor-input"
             value={relationship}
             onChange={(e) => setRelationship(e.target.value)}
-            style={{ padding: '0.5rem' }}
+            placeholder="e.g. parent, spouse"
           />
-        </label>
+        </div>
 
-        <button 
-          type="submit" 
-          style={{ 
-            backgroundColor: '#1E3A4C', 
-            color: 'white', 
-            border: 'none', 
-            padding: '0.75rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer', 
-            marginTop: '1rem',
-            borderRadius: '4px'
-          }}>
+        <button type="submit" className="harbor-btn harbor-btn-dark" style={{ marginTop: 4 }}>
           Authorize Caregiver
         </button>
       </form>
 
-      {statusMessage && (
-        <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#e6f4ea', color: '#137333', border: '1px solid #ceead6', borderRadius: '4px' }}>
-          <strong>{statusMessage}</strong>
-        </div>
-      )}
+      <div style={styles.backRow}>
+        {/* No clinician dashboard exists yet (Person 3's territory) —
+            linking home for now. Swap this for a real dashboard route
+            once one exists. */}
+        <button className="harbor-btn harbor-btn-outline" onClick={() => navigate('/')}>
+          ← Back to home
+        </button>
+      </div>
     </div>
   );
+}
+
+const styles = {
+  page: {
+    padding: '3rem 1.5rem',
+    maxWidth: 480,
+    margin: '0 auto',
+    fontFamily: "'Work Sans', sans-serif",
+  },
+  header: {
+    marginBottom: '1.5rem',
+    textAlign: 'center',
+  },
+  heading: {
+    color: '#1E3A4C',
+    fontFamily: "'Newsreader', serif",
+    fontSize: 30,
+    margin: '0 0 8px',
+  },
+  subheading: {
+    color: '#5B8A9A',
+    fontSize: 14,
+    margin: 0,
+  },
+  noticeBox: {
+    background: '#fce8e6',
+    padding: '1rem',
+    borderRadius: 12,
+    border: '1px solid #fad2cf',
+    marginBottom: '1.5rem',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.1rem',
+    padding: '2rem',
+  },
+  backRow: {
+    marginTop: '1.25rem',
+    textAlign: 'center',
+  },
 }

@@ -7,133 +7,208 @@ export default function ClinicianOnboarding() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [attestation, setAttestation] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [createdName, setCreatedName] = useState(null); // set on success; drives which view renders
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
-    // The form natively prevents submission if attestation isn't checked due to the 'required' attribute,
-    // but we can add an extra safeguard here just in case.
+
     if (!attestation) {
       alert("You must attest to being a licensed clinician to create an account.");
       return;
     }
 
     // NOTE: password intentionally excluded from this log — never log
-    // credentials, even in a hackathon demo (screen shares/recordings
-    // can leak plaintext passwords via dev tools otherwise).
+    // credentials, even in a hackathon demo.
     console.log("Creating Clinician Account:", { name, email, professional_attestation: attestation });
-    
-    // Show a success message (Person 3 will handle the actual API call to the database later)
-    setSuccessMessage(`Account created for ${name}! You can now onboard patients.`);
-    
-    // Clear form
-    setName('');
-    setEmail('');
-    setPassword('');
-    setAttestation(false);
+
+    // Person 3 will handle the actual API call to the database later.
+    setCreatedName(name);
   };
 
+  if (createdName) {
+    return (
+      <div style={styles.page}>
+        <div className="harbor-card harbor-fade-in" style={styles.confirmationCard}>
+          <SuccessIcon />
+          <h2 style={styles.confirmationHeading}>Account created</h2>
+          <p style={styles.confirmationBody}>
+            Welcome, <strong>{createdName}</strong>. You can now onboard your first patient.
+          </p>
+          <div style={styles.confirmationActions}>
+            <button
+              className="harbor-btn harbor-btn-dark"
+              onClick={() => navigate('/clinician/intake')}
+              style={{ width: '100%' }}
+            >
+              Continue to Patient Intake →
+            </button>
+            <button
+              className="harbor-btn harbor-btn-outline"
+              onClick={() => navigate('/')}
+              style={{ width: '100%' }}
+            >
+              Back to home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: '2rem', maxWidth: '500px', margin: '0 auto', fontFamily: 'Work Sans, sans-serif' }}>
-      <h2 style={{ color: '#1E3A4C', fontFamily: 'Newsreader, serif' }}>Clinician Registration</h2>
-      <p style={{ color: '#5B8A9A', marginBottom: '2rem' }}>
-        Create an account to supervise patient cognitive rehabilitation.
-      </p>
-      
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', backgroundColor: '#F2F5F7', padding: '2rem', borderRadius: '8px' }}>
-        
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Full Name:</strong>
-          <input 
-            type="text" 
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h2 style={styles.heading}>Clinician Registration</h2>
+        <p style={styles.subheading}>
+          Create an account to supervise patient cognitive rehabilitation.
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="harbor-card harbor-fade-in" style={styles.form}>
+        <div className="harbor-field">
+          <label className="harbor-label">Full Name</label>
+          <input
+            type="text"
+            className="harbor-input"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            style={{ padding: '0.5rem' }}
             placeholder="Dr. Jane Doe"
           />
-        </label>
+        </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Professional Email:</strong>
-          <input 
-            type="email" 
+        <div className="harbor-field">
+          <label className="harbor-label">Professional Email</label>
+          <input
+            type="email"
+            className="harbor-input"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            style={{ padding: '0.5rem' }}
             placeholder="jane.doe@clinic.com"
           />
-        </label>
+        </div>
 
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <strong>Password:</strong>
-          <input 
-            type="password" 
+        <div className="harbor-field">
+          <label className="harbor-label">Password</label>
+          <input
+            type="password"
+            className="harbor-input"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            style={{ padding: '0.5rem' }}
           />
-        </label>
-
-        <div style={{ backgroundColor: '#e8f0fe', padding: '1rem', borderRadius: '4px', border: '1px solid #c6dafc', marginTop: '0.5rem' }}>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-            <input 
-              type="checkbox" 
-              checked={attestation}
-              onChange={(e) => setAttestation(e.target.checked)}
-              required
-              style={{ marginTop: '0.25rem' }}
-            />
-            <span style={{ fontSize: '0.9rem', color: '#1E3A4C' }}>
-              <strong>Professional Attestation:</strong> I attest that I am a licensed clinician or physical therapist. 
-              <br/><br/>
-              <em style={{ fontSize: '0.8rem', color: '#5B8A9A' }}>
-                *Hackathon Disclaimer: Due to project scope limitations, this relies on an honor-system attestation rather than full medical identity verification.
-              </em>
-            </span>
-          </label>
         </div>
 
-        <button 
-          type="submit" 
-          style={{ 
-            backgroundColor: '#1E3A4C', 
-            color: 'white', 
-            border: 'none', 
-            padding: '0.75rem', 
-            fontWeight: 'bold', 
-            cursor: 'pointer', 
-            marginTop: '1rem', 
-            borderRadius: '4px'
-          }}>
+        <label style={styles.attestationBox}>
+          <input
+            type="checkbox"
+            className="harbor-checkbox"
+            checked={attestation}
+            onChange={(e) => setAttestation(e.target.checked)}
+            required
+            style={{ marginTop: 2 }}
+          />
+          <span style={{ fontSize: 14, color: '#1E3A4C', lineHeight: 1.5 }}>
+            <strong>Professional Attestation:</strong> I attest that I am a licensed clinician or
+            physical therapist.
+            <br />
+            <br />
+            <em style={{ fontSize: 12.5, color: '#5B8A9A' }}>
+              *Hackathon Disclaimer: Due to project scope limitations, this relies on an
+              honor-system attestation rather than full medical identity verification.
+            </em>
+          </span>
+        </label>
+
+        <button type="submit" className="harbor-btn harbor-btn-dark" style={{ marginTop: 4 }}>
           Create Clinician Account
         </button>
       </form>
-
-      {successMessage && (
-        <div style={{ marginTop: '1.5rem', padding: '1rem', backgroundColor: '#e6f4ea', color: '#137333', border: '1px solid #ceead6', borderRadius: '4px' }}>
-          <strong>✅ {successMessage}</strong>
-          <button
-            onClick={() => navigate('/clinician/intake')}
-            style={{
-              display: 'block',
-              backgroundColor: '#1E3A4C',
-              color: 'white',
-              border: 'none',
-              padding: '0.65rem 1.25rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              marginTop: '0.75rem',
-              borderRadius: '4px',
-            }}
-          >
-            Continue to Patient Intake →
-          </button>
-        </div>
-      )}
     </div>
   );
+}
+
+function SuccessIcon() {
+  return (
+    <div style={styles.iconCircle}>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+        <path d="M6 12.5l4 4 8-9" stroke="#1E3A4C" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </div>
+  );
+}
+
+const styles = {
+  page: {
+    padding: '3rem 1.5rem',
+    maxWidth: 480,
+    margin: '0 auto',
+    fontFamily: "'Work Sans', sans-serif",
+  },
+  header: {
+    marginBottom: '1.75rem',
+    textAlign: 'center',
+  },
+  heading: {
+    color: '#1E3A4C',
+    fontFamily: "'Newsreader', serif",
+    fontSize: 30,
+    margin: '0 0 8px',
+  },
+  subheading: {
+    color: '#5B8A9A',
+    fontSize: 14,
+    margin: 0,
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1.1rem',
+    padding: '2rem',
+  },
+  attestationBox: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    background: '#F2F5F7',
+    padding: '1rem',
+    borderRadius: 10,
+  },
+  confirmationCard: {
+    padding: '2.5rem 2rem',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 6,
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: '50%',
+    background: 'rgba(91, 138, 154, 0.15)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  confirmationHeading: {
+    fontFamily: "'Newsreader', serif",
+    color: '#1E3A4C',
+    fontSize: 24,
+    margin: '0 0 4px',
+  },
+  confirmationBody: {
+    color: '#4A5A64',
+    fontSize: 14,
+    lineHeight: 1.5,
+    margin: '0 0 20px',
+  },
+  confirmationActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    width: '100%',
+  },
 }
