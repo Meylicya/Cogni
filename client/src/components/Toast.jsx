@@ -19,6 +19,7 @@ export default function Toast({ kind = 'success', message, onDismiss }) {
         position: 'fixed',
         top: 24,
         left: '50%',
+        transform: 'translateX(-50%)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',

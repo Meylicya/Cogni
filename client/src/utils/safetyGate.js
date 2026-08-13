@@ -11,12 +11,12 @@ export const checkSafetyGate = (injuryTimestamp) => {
     if (hoursSinceInjury < 48) {
         return { 
             safe: false, 
-            message: "⚠️ Safety Gate Active: Patient is in the acute phase (<48 hours since injury). Exercises are blocked. Please advise rest." 
+            message: "Safety Gate Active: Patient is in the acute phase (<48 hours since injury). Exercises are blocked. Please advise rest." 
         };
     }
     
     return { 
         safe: true, 
-        message: "✅ Safety Gate Passed: Patient is cleared for sub-acute cognitive rehabilitation." 
+        message: "Safety Gate Passed: Patient is cleared for sub-acute cognitive rehabilitation." 
     };
 }

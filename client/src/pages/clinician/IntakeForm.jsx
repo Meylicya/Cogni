@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkSafetyGate } from '../../utils/safetyGate';
+import Modal from '../../components/Modal.jsx';
 
 export default function IntakeForm() {
   const navigate = useNavigate();
-  const resultRef = useRef(null);
 
   const [injuryDate, setInjuryDate] = useState('');
   const [languageDifficulty, setLanguageDifficulty] = useState(false);
@@ -14,15 +14,7 @@ export default function IntakeForm() {
   const [emotional, setEmotional] = useState(0);
   const [sleep, setSleep] = useState(0);
 
-  const [statusMessage, setStatusMessage] = useState('');
-  const [isSafe, setIsSafe] = useState(null);
-  const [assignedTier, setAssignedTier] = useState(null);
-
-  useEffect(() => {
-    if (statusMessage && resultRef.current) {
-      resultRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [statusMessage]);
+  const [result, setResult] = useState(null); // { message, isSafe, assignedTier } | null
 
   const calculateDifficultyTier = (totalScore) => {
     if (totalScore >= 18) return 1;
@@ -36,21 +28,20 @@ export default function IntakeForm() {
     e.preventDefault();
 
     const gateResult = checkSafetyGate(injuryDate);
-    setStatusMessage(gateResult.message);
-    setIsSafe(gateResult.safe);
 
     if (gateResult.safe) {
       const totalSymptoms = parseInt(cognitive) + parseInt(physical) + parseInt(emotional) + parseInt(sleep);
       const startingTier = calculateDifficultyTier(totalSymptoms);
-      setAssignedTier(startingTier);
 
       console.log("Intake Complete:", {
         languageSymptomsFlagged: languageDifficulty,
         difficulty_tier: startingTier,
         symptom_scores: { cognitive, physical, emotional, sleep },
       });
+
+      setResult({ message: gateResult.message, isSafe: true, assignedTier: startingTier });
     } else {
-      setAssignedTier(null);
+      setResult({ message: gateResult.message, isSafe: false, assignedTier: null });
     }
   };
 
@@ -58,7 +49,7 @@ export default function IntakeForm() {
     navigate('/clinician/invite-patient', {
       state: {
         languageSymptomsFlagged: languageDifficulty,
-        difficultyTier: assignedTier,
+        difficultyTier: result.assignedTier,
       },
     });
   }
@@ -129,35 +120,51 @@ export default function IntakeForm() {
         </button>
       </form>
 
-      {statusMessage && (
-        <div
-          ref={resultRef}
-          className="harbor-card harbor-fade-in"
-          style={{
-            ...styles.resultCard,
-            borderLeft: `4px solid ${isSafe ? '#2E9E5B' : '#c5221f'}`,
-          }}
-        >
-          <strong style={{ color: isSafe ? '#137333' : '#c5221f', fontSize: 15 }}>
-            {statusMessage}
-          </strong>
+      {result && (
+        <Modal onClose={() => setResult(null)}>
+          <div style={styles.resultBody}>
+            <StatusIcon isSafe={result.isSafe} />
+            <h3 style={{ ...styles.resultHeading, color: result.isSafe ? '#137333' : '#c5221f' }}>
+              {result.isSafe ? 'Cleared for exercises' : 'Acute phase — blocked'}
+            </h3>
+            <p style={styles.resultMessage}>{result.message}</p>
 
-          {isSafe && assignedTier && (
-            <>
-              <p style={{ marginTop: 10, color: '#1E3A4C', fontSize: 14 }}>
-                🎯 <strong>Calculated Starting Difficulty Tier: {assignedTier} / 5</strong>
-              </p>
-              <button
-                onClick={handleContinueToInvite}
-                className="harbor-btn harbor-btn-dark"
-                style={{ marginTop: 10 }}
-              >
-                Continue to Patient Invite →
-              </button>
-            </>
-          )}
-        </div>
+            {result.isSafe && (
+              <>
+                <div style={styles.tierRow}>
+                  <span style={styles.tierLabel}>Starting difficulty tier</span>
+                  <span style={styles.tierValue}>{result.assignedTier} / 5</span>
+                </div>
+                <button
+                  onClick={handleContinueToInvite}
+                  className="harbor-btn harbor-btn-dark"
+                  style={{ width: '100%', marginTop: 8 }}
+                >
+                  Continue to Patient Invite →
+                </button>
+              </>
+            )}
+          </div>
+        </Modal>
       )}
+    </div>
+  );
+}
+
+function StatusIcon({ isSafe }) {
+  return (
+    <div style={{ ...styles.iconCircle, background: isSafe ? 'rgba(46, 158, 91, 0.15)' : 'rgba(197, 34, 31, 0.12)' }}>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        {isSafe ? (
+          <path d="M5 12.5l4.5 4.5L19 7" stroke="#2E9E5B" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <>
+            <path d="M12 8v5" stroke="#c5221f" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M12 16.5v.01" stroke="#c5221f" strokeWidth="2.2" strokeLinecap="round" />
+            <circle cx="12" cy="12" r="9" stroke="#c5221f" strokeWidth="1.6" opacity="0.35" />
+          </>
+        )}
+      </svg>
     </div>
   );
 }
@@ -206,8 +213,50 @@ const styles = {
     alignItems: 'flex-start',
     gap: 10,
   },
-  resultCard: {
-    marginTop: '1.5rem',
-    padding: '1.25rem 1.5rem',
+  resultBody: {
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  resultHeading: {
+    fontFamily: "'Newsreader', serif",
+    fontSize: 21,
+    margin: '0 0 8px',
+  },
+  resultMessage: {
+    color: '#4A5A64',
+    fontSize: 13.5,
+    lineHeight: 1.5,
+    margin: '0 0 16px',
+  },
+  tierRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    background: '#F2F5F7',
+    borderRadius: 10,
+    padding: '10px 16px',
+  },
+  tierLabel: {
+    fontSize: 13,
+    color: '#4A5A64',
+    fontWeight: 500,
+  },
+  tierValue: {
+    fontFamily: "'Newsreader', serif",
+    fontSize: 20,
+    fontWeight: 600,
+    color: '#1E3A4C',
   },
 }
