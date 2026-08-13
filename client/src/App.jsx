@@ -1,3 +1,6 @@
+import PrivacySandbox from './pages/shared/PrivacySandbox.jsx';
+import Dashboard from './pages/clinician/Dashboard.jsx';
+import Login from './pages/clinician/Login.jsx';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { SessionProvider, useSession } from './context/SessionContext.jsx'
 import LandingPage from './pages/LandingPage.jsx'
@@ -33,6 +36,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
 
+          <Route path="/login" element={<Login />} />
           <Route path="/clinician/signup" element={<ClinicianOnboarding />} />
           <Route path="/clinician/intake" element={<IntakeForm />} />
           <Route path="/clinician/invite-patient" element={<PatientInvite />} />
@@ -42,8 +46,8 @@ function App() {
           <Route path="/games" element={<GamesRoute />} />
           <Route path="/invite/:token" element={<AcceptInvite />} />
 
-          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
-          {/* <Route path="/privacy-sandbox" element={<PrivacySandbox />} /> */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/privacy-sandbox" element={<PrivacySandbox />} />
         </Routes>
       </BrowserRouter>
     </SessionProvider>

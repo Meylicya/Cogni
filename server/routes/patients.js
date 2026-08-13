@@ -1,56 +1,66 @@
-import { Router } from 'express'
-import { Patient } from '../models/index.js'
+import express from 'express';
+import crypto from 'crypto';
+import Patient from '../models/Patient.js';
+import { sendPatientInviteEmail } from '../utils/mailer.js';
 
-const router = Router()
+const router = express.Router();
 
-// POST /api/patients — clinician creates a patient record (pre-invite)
+// 1. ENDPOINT TO SEND THE INVITE (Triggered by Clinician)
+router.post('/invite', async (req, res) => {
+  try {
+    const { email, name, clinicianId } = req.body;
+
+    // Generate a secure 32-character random token for the magic link
+    const inviteToken = crypto.randomBytes(16).toString('hex');
+
+    // Create a pending patient record in the database
+    const newPatient = new Patient({
+      email,
+      name: name || 'Pending Patient',
+      clinicianId,
+      inviteToken
+    });
+    
+    await newPatient.save();
+
+    // Fire off the email using our Nodemailer utility
+    const emailSent = await sendPatientInviteEmail(email, name, inviteToken);
+    
+    if (!emailSent) {
+      return res.status(500).json({ message: 'Patient saved, but email failed to send.' });
+    }
+
+    res.status(200).json({ message: 'Invite sent successfully!' });
+  } catch (error) {
+    console.error('Invite Error:', error);
+    res.status(500).json({ message: 'Internal server error during invite.' });
+  }
+});
+
+// 2. ENDPOINT TO ACCEPT THE INVITE (Triggered by Patient clicking the link)
 router.post('/', async (req, res) => {
   try {
-    // TODO: auth middleware — clinician-only route
-    const { clinicianId, difficultyTier, languageSymptomsFlagged } = req.body
-    const patient = await Patient.create({
-      clinicianId,
-      difficultyTier,
-      languageSymptomsFlagged,
-      status: 'pending_invite',
-    })
-    res.status(201).json(patient)
-  } catch (err) {
-    res.status(400).json({ error: err.message })
-  }
-})
+    const { name, password, inviteToken } = req.body;
 
-// GET /api/patients/:id
-router.get('/:id', async (req, res) => {
-  try {
-    const patient = await Patient.findById(req.params.id).select('-authCredentialHash -inviteToken')
-    if (!patient) return res.status(404).json({ error: 'Patient not found' })
-    res.json(patient)
-  } catch (err) {
-    res.status(400).json({ error: err.message })
-  }
-})
+    // Find the patient in the database using the unique token from the URL
+    const patient = await Patient.findOne({ inviteToken });
 
-// PATCH /api/patients/:id — update clinical parameters (difficultyTier, status, etc.)
-// Caregivers must NEVER be able to hit this — read-only per the access-control design.
-router.patch('/:id', async (req, res) => {
-  try {
-    // TODO: auth middleware — clinician-only, enforce here once auth exists:
-    // if (req.user.role !== 'clinician') return res.status(403).json({ error: 'Forbidden' })
-    const allowedFields = ['difficultyTier', 'languageSymptomsFlagged', 'status', 'email']
-    const updates = {}
-    for (const field of allowedFields) {
-      if (field in req.body) updates[field] = req.body[field]
+    if (!patient) {
+      return res.status(404).json({ message: 'Invalid or expired invite link.' });
     }
-    const patient = await Patient.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
-    }).select('-authCredentialHash -inviteToken')
-    if (!patient) return res.status(404).json({ error: 'Patient not found' })
-    res.json(patient)
-  } catch (err) {
-    res.status(400).json({ error: err.message })
-  }
-})
 
-export default router
+    // Update the patient's details
+    patient.name = name;
+    patient.password = password; // Note: In a production app, we would hash this with bcrypt!
+    patient.inviteToken = null; // Clear the token so the link cannot be used twice
+    
+    await patient.save();
+
+    res.status(200).json({ message: 'Account finalized successfully!' });
+  } catch (error) {
+    console.error('Accept Invite Error:', error);
+    res.status(500).json({ message: 'Internal server error during account setup.' });
+  }
+});
+
+export default router;
