@@ -12,6 +12,7 @@
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
     "mongodb": "^7.5.0",
+    "mongodb-memory-server": "^11.2.0",
     "mongoose": "^9.9.2",
     "nodemailer": "^9.0.5"
   }

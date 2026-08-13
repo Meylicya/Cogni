@@ -11,11 +11,18 @@ export default function PatientInvite() {
     setIsSending(true);
     setStatusMessage('Generating magic link and sending email...');
 
-    // Grab the logged-in clinician's ID that we saved during the Login phase
-    const clinicianId = localStorage.getItem('clinician_id');
+    // Grab the ID we saved during login!
+    const savedClinicianId = localStorage.getItem('clinicianId');
 
-    if (!clinicianId) {
-      setStatusMessage('Error: You must be logged in to invite a patient.');
+    const payload = { 
+      name: patientName, 
+      email: patientEmail, 
+      clinicianId: savedClinicianId 
+    };
+
+    // FIXED: Now checking the correct variable name
+    if (!savedClinicianId) {
+      setStatusMessage('Error: You must be logged in to invite a patient. Please log out and back in.');
       setIsSending(false);
       return;
     }
@@ -27,11 +34,8 @@ export default function PatientInvite() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          name: patientName, 
-          email: patientEmail, 
-          clinicianId 
-        }),
+        // FIXED: Passing the payload object we safely constructed above
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {

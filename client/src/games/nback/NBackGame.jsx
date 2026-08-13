@@ -46,6 +46,16 @@ export default function NBackGame({ difficulty, onGameEvent }) {
       if (next.phase === PHASES.COMPLETE) {
         const event = buildSessionEvent(next)
         onGameEvent?.(event)
+        
+        // HACKATHON FIX: Get the active patient's ID and save the score JUST for them!
+        const finalScore = Math.round(computeAccuracy(next) * 100);
+        const activePatientId = localStorage.getItem('demo_active_patient_id');
+        
+        if (activePatientId) {
+          localStorage.setItem(`game_${activePatientId}`, 'N-Back');
+          localStorage.setItem(`score_${activePatientId}`, finalScore);
+        }
+        
       } else {
         scheduleAdvance(next.stimulusIntervalMs)
       }

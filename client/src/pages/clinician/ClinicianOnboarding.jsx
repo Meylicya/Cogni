@@ -17,10 +17,11 @@ export default function ClinicianOnboarding() {
       return;
     }
 
+    // UPDATED: Mapped the frontend password to the backend's expected 'authCredentialHash' field
     const payload = { 
       name, 
       email, 
-      password, 
+      authCredentialHash: password, 
       professional_attestation: attestation 
     };
 

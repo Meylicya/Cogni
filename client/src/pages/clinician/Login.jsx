@@ -20,12 +20,13 @@ export default function Login() {
 
       if (response.ok) {
         const data = await response.json();
-        // Store the auth token for the rest of the app to use
-        localStorage.setItem('cogni_token', data.token);
-        localStorage.setItem('clinician_id', data.clinicianId);
         
-        setStatusMessage('Login successful! Redirecting...');
-        setTimeout(() => navigate('/patient-invite'), 1500); // Redirects to dashboard
+        // HACKATHON FIX: Save the ID securely in the browser's local storage
+        if (data.clinician && data.clinician.id) {
+          localStorage.setItem('clinicianId', data.clinician.id);
+        }
+
+        navigate('/dashboard');
       } else {
         const errorData = await response.json();
         setStatusMessage(`Login failed: ${errorData.message || 'Invalid credentials'}`);

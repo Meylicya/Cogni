@@ -7,6 +7,12 @@ const patientSchema = new mongoose.Schema(
       ref: 'Clinician',
       required: true,
     },
+    // HACKATHON FIX: Person 3 forgot the name field! Added it right here.
+    name: {
+      type: String,
+      trim: true,
+      default: 'Unknown Patient'
+    },
     // Nullable until the patient completes the invite flow
     email: {
       type: String,
@@ -25,7 +31,6 @@ const patientSchema = new mongoose.Schema(
       default: null,
     },
     // 1–5, set from intake, adjusted by Person 2's ZPD engine.
-    // Clinician-write-only per the role check (Section 6 design notes).
     difficultyTier: {
       type: Number,
       min: 1,

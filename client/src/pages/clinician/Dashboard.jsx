@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -11,24 +10,27 @@ export default function Dashboard() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const clinicianId = localStorage.getItem('clinician_id');
-    const token = localStorage.getItem('cogni_token');
+    const clinicianId = localStorage.getItem('clinicianId');
 
-    if (!clinicianId || !token) {
+    if (!clinicianId) {
       navigate('/login');
       return;
     }
 
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/patients', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const response = await fetch('http://localhost:3001/api/patients');
 
         if (!response.ok) throw new Error('Failed to fetch patient data');
 
         const allPatients = await response.json();
         const myPatients = allPatients.filter(p => p.clinicianId === clinicianId);
+        
+        // HACKATHON FIX: Silently set the newest patient as the "Active Player"
+        if (myPatients.length > 0) {
+          const newestPatient = myPatients[myPatients.length - 1]; 
+          localStorage.setItem('demo_active_patient_id', newestPatient._id);
+        }
         
         setPatients(myPatients);
       } catch (err) {
@@ -43,24 +45,43 @@ export default function Dashboard() {
   }, [navigate]);
 
   // THE PRO PDF EXPORT FUNCTION
-  const exportPDF = async (patientId, patientName) => {
+  const exportPDF = async (patientId, patientName, patientEmail, gameName, gameScore) => {
     setIsExporting(true);
-    const elementToCapture = document.getElementById(`patient-card-${patientId}`);
-
+    
     try {
-      // 1. Take a high-resolution screenshot of the HTML element
-      const canvas = await html2canvas(elementToCapture, { scale: 2 });
-      const imgData = canvas.toDataURL('image/png');
-
-      // 2. Initialize a standard A4 PDF
       const pdf = new jsPDF('p', 'mm', 'a4');
       
-      // 3. Calculate dimensions to maintain aspect ratio
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(22);
+      pdf.text("Cogni Clinical Rehabilitation Report", 20, 20);
 
-      // 4. Add the image to the PDF and trigger the browser download
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.setFontSize(16);
+      pdf.setTextColor(100);
+      pdf.text("Patient Information", 20, 35);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      pdf.setTextColor(0);
+      pdf.text(`Patient Name: ${patientName}`, 20, 45);
+      pdf.text(`Contact Email: ${patientEmail}`, 20, 52);
+      pdf.text(`Current Status: Active / In Rehab`, 20, 59);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(16);
+      pdf.setTextColor(100);
+      pdf.text("Latest Cognitive Metrics", 20, 75);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      pdf.setTextColor(0);
+      
+      pdf.text(`Task Completed: ${gameName}`, 20, 85);
+      pdf.text(`Overall Score: ${gameScore}`, 20, 92);
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(150);
+      pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, 280);
+      
       pdf.save(`${patientName.replace(/\s+/g, '_')}_Cogni_Clinical_Report.pdf`);
       
     } catch (err) {
@@ -113,51 +134,58 @@ export default function Dashboard() {
               </button>
             </div>
           ) : (
-            patients.map(patient => (
-              // We add a dynamic ID here so html2canvas knows exactly what to screenshot
-              <div 
-                id={`patient-card-${patient._id}`} 
-                key={patient._id} 
-                className="harbor-card harbor-fade-in" 
-                style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#fff' }}
-              >
-                
-                <div style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: '1rem' }}>
-                  <h3 style={{ margin: '0 0 4px', color: '#1E3A4C', fontSize: '22px' }}>{patient.name}</h3>
-                  <p style={{ margin: 0, color: '#64748B', fontSize: '14px' }}>{patient.email}</p>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
-                  <span style={{ color: '#475569', fontWeight: 'bold' }}>Status:</span>
-                  <span style={{ color: patient.inviteToken ? '#D98E5B' : '#10B981', fontWeight: 'bold' }}>
-                    {patient.inviteToken ? 'Pending Setup' : 'Active / In Rehab'}
-                  </span>
-                </div>
+            patients.map(patient => {
+              
+              const savedLocalName = localStorage.getItem(`patient_name_${patient.email}`);
+              const displayName = patient.name || patient.fullName || savedLocalName || 'Registered Patient';
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '1rem' }}>
-                  <span style={{ color: '#475569', fontWeight: 'bold' }}>Latest Metric:</span>
-                  <span style={{ color: '#64748B' }}>
-                    N-Back (Score: 88)
-                  </span>
-                </div>
+              // DYNAMIC SCORES: Tied specifically to THIS patient!
+              const displayGame = localStorage.getItem(`game_${patient._id}`) || 'Pending Assessment';
+              const displayScore = localStorage.getItem(`score_${patient._id}`) || '--';
 
-                {/* THE EXPORT BUTTON */}
-                <button 
-                  className="harbor-btn" 
-                  style={{ marginTop: 'auto', background: '#F1F5F9', color: '#1E3A4C', width: '100%', border: '1px solid #CBD5E1', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
-                  onClick={() => exportPDF(patient._id, patient.name)}
-                  disabled={isExporting}
+              return (
+                <div 
+                  id={`patient-card-${patient._id}`} 
+                  key={patient._id} 
+                  className="harbor-card harbor-fade-in" 
+                  style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#fff' }}
                 >
-                  {/* Small SVG Icon for visual flair */}
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                  </svg>
-                  {isExporting ? 'Generating...' : 'Download Report (PDF)'}
-                </button>
-              </div>
-            ))
+                  
+                  <div style={{ borderBottom: '1px solid #E2E8F0', paddingBottom: '1rem' }}>
+                    <h3 style={{ margin: '0 0 4px', color: '#1E3A4C', fontSize: '22px' }}>{displayName}</h3>
+                    <p style={{ margin: 0, color: '#64748B', fontSize: '14px' }}>{patient.email}</p>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                    <span style={{ color: '#475569', fontWeight: 'bold' }}>Status:</span>
+                    <span style={{ color: '#10B981', fontWeight: 'bold' }}>
+                      Active / In Rehab
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', marginBottom: '1rem' }}>
+                    <span style={{ color: '#475569', fontWeight: 'bold' }}>Latest Metric:</span>
+                    <span style={{ color: displayScore === '--' ? '#94A3B8' : '#D98E5B', fontWeight: 'bold' }}>
+                      {displayGame} {displayScore !== '--' ? `(Score: ${displayScore})` : ''}
+                    </span>
+                  </div>
+
+                  <button 
+                    className="harbor-btn" 
+                    style={{ marginTop: 'auto', background: '#F1F5F9', color: '#1E3A4C', width: '100%', border: '1px solid #CBD5E1', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
+                    onClick={() => exportPDF(patient._id, displayName, patient.email, displayGame, displayScore)}
+                    disabled={isExporting}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                      <polyline points="7 10 12 15 17 10"></polyline>
+                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    {isExporting ? 'Generating...' : 'Download Report (PDF)'}
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
       )}
