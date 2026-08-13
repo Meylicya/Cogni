@@ -104,12 +104,24 @@ export default function Dashboard() {
             Overview of your active cognitive rehabilitation patients.
           </p>
         </div>
-        <button 
-          className="harbor-btn harbor-btn-dark"
-          onClick={() => navigate('/clinician/invite-patient')}
-        >
-          + Invite New Patient
-        </button>
+        
+        {/* HACKATHON UX FIX: Added a button group for all clinician actions! */}
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button 
+            className="harbor-btn"
+            style={{ background: '#fff', color: '#1E3A4C', border: '1px solid #CBD5E1', padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => navigate('/clinician/caregiver-access')}
+          >
+            + Grant Caregiver Access
+          </button>
+          
+          <button 
+            className="harbor-btn harbor-btn-dark"
+            onClick={() => navigate('/clinician/invite-patient')}
+          >
+            + Invite New Patient
+          </button>
+        </div>
       </div>
 
       {error && (

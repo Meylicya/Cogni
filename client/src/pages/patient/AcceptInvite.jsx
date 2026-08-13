@@ -1,24 +1,8 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-/**
- * AcceptInvite — where a patient lands after clicking the magic-link URL
- * from their invite email. This is the piece that was genuinely missing:
- * PatientInvite.jsx only ever requested an invite be sent; nothing existed
- * for the patient's side of that link.
- *
- * REAL LIMITATION, not solved here: this component can only render once a
- * patient already has a valid link in hand. Actually delivering that
- * email requires a real email-sending service (e.g. SendGrid, Resend, AWS
- * SES) wired into Person 3's backend — that needs server-side API keys
- * and can't be done from the frontend at all. The Express server's
- * PatientInvite endpoint should, once built, generate a token, store it
- * against the patient record, and send an email containing a link to
- * `/invite/:token` (this route). Until that exists, the only way to
- * reach this page is by typing the URL directly — that's expected during
- * development, not a bug in this component.
- */
 export default function AcceptInvite() {
+  const [symptomLevel, setSymptomLevel] = useState(0);
   const { token } = useParams();
   const navigate = useNavigate();
   const [password, setPassword] = useState('');
@@ -33,6 +17,12 @@ export default function AcceptInvite() {
   function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    // HACKATHON SAFETY GATE: Block if symptoms are severe
+    if (symptomLevel > 7) {
+      alert("⚠️ SAFETY GATE: Your reported symptoms are very high. Please stop looking at screens and contact your clinician immediately. Account creation is temporarily blocked.");
+      return; // This blocks them from continuing!
+    }
 
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
@@ -80,10 +70,32 @@ export default function AcceptInvite() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h2 style={styles.heading}>Welcome to Harbor</h2>
-        <p style={styles.subheading}>Set a password to finish creating your account.</p>
+        <p style={styles.subheading}>Complete your patient intake and set a password.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="harbor-card harbor-fade-in" style={styles.form}>
+        
+        {/* SAFETY GATE UI: Symptom Check-in */}
+        <div className="harbor-field" style={{ marginBottom: '0.5rem', textAlign: 'left', paddingBottom: '1rem', borderBottom: '1px solid #E2E8F0' }}>
+          <label className="harbor-label" style={{ display: 'block', marginBottom: '8px' }}>
+            Current Symptom Severity (0-10)
+          </label>
+          <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 12px 0' }}>
+            0 = No symptoms | 10 = Severe headache/nausea
+          </p>
+          <input 
+            type="range" 
+            min="0" 
+            max="10" 
+            value={symptomLevel}
+            onChange={(e) => setSymptomLevel(e.target.value)}
+            style={{ width: '100%', cursor: 'pointer' }}
+          />
+          <div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: '8px', color: symptomLevel > 7 ? '#c5221f' : '#5B8A9A' }}>
+            Reported Level: {symptomLevel}
+          </div>
+        </div>
+
         <div className="harbor-field">
           <label className="harbor-label">New Password</label>
           <input

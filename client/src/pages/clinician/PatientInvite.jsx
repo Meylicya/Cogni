@@ -5,11 +5,25 @@ export default function PatientInvite() {
   const [patientEmail, setPatientEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [injuryTiming, setInjuryTiming] = useState('');
 
   const handleInvite = async (e) => {
     e.preventDefault();
     setIsSending(true);
     setStatusMessage('Generating magic link and sending email...');
+
+    // HACKATHON SAFETY GATE: Block patients in the acute phase!
+    if (injuryTiming === 'acute') {
+      setStatusMessage('⚠️ SAFETY GATE ACTIVATED: Patient is within 48 hours of injury. Cognitive rehabilitation is strictly contraindicated during the acute phase. Please prescribe rest and re-evaluate later.');
+      setIsSending(false);
+      return; 
+    }
+    
+    if (!injuryTiming) {
+      setStatusMessage('Please select the patient\'s injury timing.');
+      setIsSending(false);
+      return;
+    }
 
     // Grab the ID we saved during login!
     const savedClinicianId = localStorage.getItem('clinicianId');
@@ -42,6 +56,7 @@ export default function PatientInvite() {
         setStatusMessage(`Success! An invite email has been sent to ${patientEmail}.`);
         setPatientName('');
         setPatientEmail('');
+        setInjuryTiming(''); // Reset the dropdown on success
       } else {
         const errorData = await response.json();
         setStatusMessage(`Failed to send invite: ${errorData.message}`);
@@ -91,6 +106,23 @@ export default function PatientInvite() {
             placeholder="john.doe@example.com"
             disabled={isSending}
           />
+        </div>
+
+        <div className="harbor-field">
+          <label className="harbor-label">Time Since Concussion/Injury</label>
+          <select 
+            className="harbor-input"
+            value={injuryTiming}
+            onChange={(e) => setInjuryTiming(e.target.value)}
+            disabled={isSending}
+            required
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+          >
+            <option value="" disabled>Select injury timing...</option>
+            <option value="acute">Less than 48 hours (Acute Phase)</option>
+            <option value="subacute">3 to 7 days</option>
+            <option value="chronic">More than 1 week</option>
+          </select>
         </div>
 
         <button 

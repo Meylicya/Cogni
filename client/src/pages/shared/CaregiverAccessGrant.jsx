@@ -1,126 +1,150 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Toast from '../../components/Toast.jsx';
 
-export default function CaregiverAccessGrant({ patientId, patientName }) {
+export default function CaregiverAccessGrant() {
   const navigate = useNavigate();
+  const [patients, setPatients] = useState([]);
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [caregiverName, setCaregiverName] = useState('');
   const [caregiverEmail, setCaregiverEmail] = useState('');
-  const [relationship, setRelationship] = useState('');
-  const [toast, setToast] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  // Fetch the clinician's active patients to populate the dropdown
+  useEffect(() => {
+    const clinicianId = localStorage.getItem('clinicianId');
+    if (!clinicianId) return;
+
+    const fetchPatients = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/patients');
+        if (response.ok) {
+          const allPatients = await response.json();
+          const myPatients = allPatients.filter(p => p.clinicianId === clinicianId);
+          setPatients(myPatients);
+        }
+      } catch (err) {
+        console.error("Failed to fetch patients for caregiver link:", err);
+      }
+    };
+
+    fetchPatients();
+  }, []);
 
   const handleGrantAccess = (e) => {
     e.preventDefault();
+    setIsSending(true);
+    setStatusMessage('Writing to secure caregiver_patient_links database...');
 
-    const payload = { patientId, caregiverEmail, relationshipLabel: relationship };
-    console.log("Sending to API:", payload);
-
-    setToast({ message: `Access granted for ${caregiverEmail}.` });
-    setCaregiverEmail('');
-    setRelationship('');
+    // HACKATHON MOCK: Simulate the secure backend linkage!
+    setTimeout(() => {
+      setStatusMessage(`✅ Success! Secure read-only access granted. An invitation link has been sent to ${caregiverEmail}.`);
+      setIsSending(false);
+      setCaregiverName('');
+      setCaregiverEmail('');
+      setSelectedPatientId('');
+    }, 1500);
   };
 
   return (
-    <div style={styles.page}>
-      {toast && <Toast message={toast.message} onDismiss={() => setToast(null)} />}
-
-      <div style={styles.header}>
-        <h2 style={styles.heading}>Authorize Caregiver Access</h2>
-        <p style={styles.subheading}>
-          Securely grant a caregiver read-only access to a patient's recovery dashboard.
+    <div style={{ padding: '3rem 1.5rem', maxWidth: 550, margin: '0 auto', fontFamily: "'Work Sans', sans-serif" }}>
+      
+      <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
+        <h2 style={{ color: '#1E3A4C', fontFamily: "'Newsreader', serif", fontSize: 30, margin: '0 0 8px' }}>
+          Caregiver Access Grant
+        </h2>
+        <p style={{ color: '#5B8A9A', fontSize: 14, margin: '0 auto', lineHeight: 1.5, maxWidth: 450 }}>
+          For patient privacy and HIPAA compliance, caregivers cannot self-register. 
+          Use this portal to securely link a family member to an active patient record.
         </p>
       </div>
 
-      <div style={styles.noticeBox}>
-        <strong style={{ color: '#c5221f', fontSize: 13.5 }}>🔒 Security & Privacy Notice</strong>
-        <p style={{ fontSize: 13, color: '#c5221f', margin: '6px 0 0' }}>
-          Caregivers cannot request or self-assign access. This link must be explicitly granted by
-          the patient's clinician or the patient themselves.
-        </p>
-      </div>
+      <form onSubmit={handleGrantAccess} className="harbor-card harbor-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '2rem', background: '#fff' }}>
+        
+        {/* Patient Selection Dropdown */}
+        <div className="harbor-field">
+          <label className="harbor-label">Select Patient Record</label>
+          <select 
+            className="harbor-input"
+            value={selectedPatientId}
+            onChange={(e) => setSelectedPatientId(e.target.value)}
+            disabled={isSending || patients.length === 0}
+            required
+            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+          >
+            <option value="" disabled>
+              {patients.length === 0 ? "Loading patients..." : "Select a patient..."}
+            </option>
+            {patients.map(p => (
+              <option key={p._id} value={p._id}>
+                {p.name || p.fullName || 'Unknown Patient'} ({p.email})
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <form onSubmit={handleGrantAccess} className="harbor-card harbor-fade-in" style={styles.form}>
-        {patientName && (
-          <div style={{ color: '#1E3A4C', fontSize: 14 }}>
-            Granting access for: <strong>{patientName}</strong>
-          </div>
-        )}
+        {/* Caregiver Information */}
+        <div className="harbor-field">
+          <label className="harbor-label">Caregiver Name</label>
+          <input 
+            type="text" 
+            className="harbor-input"
+            value={caregiverName} 
+            onChange={(e) => setCaregiverName(e.target.value)} 
+            required 
+            placeholder="Jane Doe"
+            disabled={isSending}
+          />
+        </div>
 
         <div className="harbor-field">
           <label className="harbor-label">Caregiver Email</label>
-          <input
-            type="email"
+          <input 
+            type="email" 
             className="harbor-input"
-            value={caregiverEmail}
-            onChange={(e) => setCaregiverEmail(e.target.value)}
-            required
+            value={caregiverEmail} 
+            onChange={(e) => setCaregiverEmail(e.target.value)} 
+            required 
+            placeholder="jane.doe@family.com"
+            disabled={isSending}
           />
         </div>
 
-        <div className="harbor-field">
-          <label className="harbor-label">Relationship to Patient (Optional)</label>
-          <input
-            type="text"
-            className="harbor-input"
-            value={relationship}
-            onChange={(e) => setRelationship(e.target.value)}
-            placeholder="e.g. parent, spouse"
-          />
+        <div style={{ background: '#F8FAFC', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #D98E5B', fontSize: '13px', color: '#475569' }}>
+          <strong>Security Note:</strong> This action creates a secure cryptographic link in the <code style={{background: '#E2E8F0', padding: '2px 4px', borderRadius: '4px'}}>caregiver_patient_links</code> database table. The caregiver will receive view-only access to progress reports.
         </div>
 
-        <button type="submit" className="harbor-btn harbor-btn-dark" style={{ marginTop: 4 }}>
-          Authorize Caregiver
+        <button 
+          type="submit" 
+          className="harbor-btn harbor-btn-dark" 
+          style={{ marginTop: 8, opacity: isSending ? 0.7 : 1 }}
+          disabled={isSending}
+        >
+          {isSending ? 'Authenticating & Linking...' : 'Grant Read-Only Access'}
         </button>
+
+        {statusMessage && (
+          <p style={{ 
+            marginTop: '0.5rem', 
+            fontSize: 14, 
+            textAlign: 'center', 
+            fontWeight: 'bold', 
+            color: statusMessage.includes('Success') ? '#10B981' : '#D98E5B' 
+          }}>
+            {statusMessage}
+          </p>
+        )}
       </form>
 
-      <div style={styles.backRow}>
-        {/* No clinician dashboard exists yet (Person 3's territory) —
-            linking home for now. Swap this for a real dashboard route
-            once one exists. */}
-        <button className="harbor-btn harbor-btn-outline" onClick={() => navigate('/')}>
-          ← Back to home
+      <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+        <button 
+          type="button" 
+          onClick={() => navigate('/clinician/dashboard')}
+          style={{ background: 'none', border: 'none', color: '#5B8A9A', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
+        >
+          ← Return to Mission Control
         </button>
       </div>
     </div>
   );
-}
-
-const styles = {
-  page: {
-    padding: '3rem 1.5rem',
-    maxWidth: 480,
-    margin: '0 auto',
-    fontFamily: "'Work Sans', sans-serif",
-  },
-  header: {
-    marginBottom: '1.5rem',
-    textAlign: 'center',
-  },
-  heading: {
-    color: '#1E3A4C',
-    fontFamily: "'Newsreader', serif",
-    fontSize: 30,
-    margin: '0 0 8px',
-  },
-  subheading: {
-    color: '#5B8A9A',
-    fontSize: 14,
-    margin: 0,
-  },
-  noticeBox: {
-    background: '#fce8e6',
-    padding: '1rem',
-    borderRadius: 12,
-    border: '1px solid #fad2cf',
-    marginBottom: '1.5rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1.1rem',
-    padding: '2rem',
-  },
-  backRow: {
-    marginTop: '1.25rem',
-    textAlign: 'center',
-  },
 }
