@@ -19,7 +19,7 @@ export default function LandingPage() {
       <style>{cssVars}</style>
 
       <div style={styles.hero}>
-        <span style={styles.eyebrow}>Harbor</span>
+        <span style={styles.eyebrow}>Cogni</span>
         <h1 style={styles.heading}>Recovery, one step at a time.</h1>
         <p style={styles.subheading}>
           An active, adaptive cognitive rehabilitation tool for concussion recovery —
