@@ -11,8 +11,6 @@ import CaregiverAccessGrant from './pages/shared/CaregiverAccessGrant.jsx'
 import EvidencePage from './pages/shared/EvidencePage.jsx'
 import AcceptInvite from './pages/patient/AcceptInvite.jsx'
 import RehabSessionShell from './games/RehabSessionShell.jsx'
-import Dashboard from './pages/clinician/Dashboard.jsx'
-import PrivacySandbox from './pages/clinician/PrivacySandbox.jsx'
 
 /**
  * languageSymptomsFlagged used to arrive as a ?language=1 URL param on
