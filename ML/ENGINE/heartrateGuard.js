@@ -98,13 +98,19 @@ export class HeartRateGuard {
   }
 
   _currentResult() {
-    if (this.raw.length < this.sampleHz * 3) {
-     
+    const MIN_SAMPLES_FOR_ESTIMATE = 45; 
+
+    if (this.raw.length < MIN_SAMPLES_FOR_ESTIMATE) {
       return { bpm: null, confidence: 0, elevated: false };
     }
 
-    const signal = this._posSignal(this._resample(this.raw));
-    const { bpm, confidence } = this._estimateBpm(signal);
+   
+    const spanMs = this.raw[this.raw.length - 1].t - this.raw[0].t;
+    const achievedHz = spanMs > 0 ? (this.raw.length - 1) / (spanMs / 1000) : this.sampleHz;
+    const effectiveHz = Math.min(this.sampleHz, Math.max(this.minBpm / 60 * 2, achievedHz));
+
+    const signal = this._posSignal(this._resample(this.raw, effectiveHz));
+    const { bpm, confidence } = this._estimateBpm(signal, effectiveHz);
 
     if (bpm === null || confidence < this.minConfidence) {
       return { bpm: null, confidence, elevated: false };
@@ -127,15 +133,15 @@ export class HeartRateGuard {
   }
 
   
-  _resample(raw) {
+  _resample(raw, targetHz = this.sampleHz) {
     const t0 = raw[0].t;
     const tN = raw[raw.length - 1].t;
-    const n = Math.floor(((tN - t0) / 1000) * this.sampleHz);
+    const n = Math.floor(((tN - t0) / 1000) * targetHz);
     if (n < 8) return raw;
 
     const out = [];
     for (let i = 0; i < n; i++) {
-      const t = t0 + (i * 1000) / this.sampleHz;
+      const t = t0 + (i * 1000) / targetHz;
       let j = 0;
       while (j < raw.length - 2 && raw[j + 1].t < t) j++;
       const a = raw[j], b = raw[Math.min(j + 1, raw.length - 1)];
@@ -178,9 +184,8 @@ export class HeartRateGuard {
   }
 
   
-  _estimateBpm(signal) {
+  _estimateBpm(signal, fs = this.sampleHz) {
     const N = signal.length;
-    const fs = this.sampleHz;
 
     const goertzelPower = (freqHz) => {
       const k = Math.round((freqHz / fs) * N);
