@@ -1,8 +1,12 @@
 import React from 'react';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function EvidencePage() {
   return (
     <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto', fontFamily: 'Work Sans, sans-serif', color: '#1E3A4C' }}>
+      <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+        ← Back to home
+      </BackButton>
       <h2 style={{ color: '#1E3A4C', fontFamily: 'Newsreader, serif', borderBottom: '2px solid #5B8A9A', paddingBottom: '0.5rem' }}>
         Evidence & Guidelines
       </h2>

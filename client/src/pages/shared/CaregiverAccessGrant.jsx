@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function CaregiverAccessGrant() {
-  const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [caregiverName, setCaregiverName] = useState('');
@@ -48,6 +47,9 @@ export default function CaregiverAccessGrant() {
 
   return (
     <div style={{ padding: '3rem 1.5rem', maxWidth: 550, margin: '0 auto', fontFamily: "'Work Sans', sans-serif" }}>
+      <BackButton to="/dashboard" style={{ marginBottom: '1.25rem' }}>
+        ← Back to dashboard
+      </BackButton>
       
       <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
         <h2 style={{ color: '#1E3A4C', fontFamily: "'Newsreader', serif", fontSize: 30, margin: '0 0 8px' }}>
@@ -135,16 +137,6 @@ export default function CaregiverAccessGrant() {
           </p>
         )}
       </form>
-
-      <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-        <button 
-          type="button" 
-          onClick={() => navigate('/clinician/dashboard')}
-          style={{ background: 'none', border: 'none', color: '#5B8A9A', textDecoration: 'underline', cursor: 'pointer', fontSize: '14px' }}
-        >
-          ← Return to Mission Control
-        </button>
-      </div>
     </div>
   );
 }

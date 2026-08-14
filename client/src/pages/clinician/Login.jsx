@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -39,6 +40,9 @@ export default function Login() {
 
   return (
     <div style={{ padding: '3rem 1.5rem', maxWidth: 480, margin: '0 auto', fontFamily: "'Work Sans', sans-serif" }}>
+      <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+        ← Back to home
+      </BackButton>
       <div style={{ marginBottom: '1.75rem', textAlign: 'center' }}>
         <h2 style={{ color: '#1E3A4C', fontFamily: "'Newsreader', serif", fontSize: 30, margin: '0 0 8px' }}>Clinician Login</h2>
         <p style={{ color: '#5B8A9A', fontSize: 14, margin: 0 }}>Access your patient rehabilitation dashboard.</p>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function PrivacySandbox() {
   const [isEncrypting, setIsEncrypting] = useState(false);
@@ -77,6 +78,9 @@ export default function PrivacySandbox() {
 
   return (
     <div style={{ padding: '3rem 1.5rem', maxWidth: 1000, margin: '0 auto', fontFamily: "'Work Sans', sans-serif" }}>
+      <BackButton to="/dashboard" style={{ marginBottom: '1.25rem' }}>
+        ← Back to dashboard
+      </BackButton>
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h2 style={{ color: '#1E3A4C', fontFamily: "'Newsreader', serif", fontSize: 32, margin: '0 0 8px' }}>
           Live Security Sandbox

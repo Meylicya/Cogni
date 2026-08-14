@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkSafetyGate } from '../../utils/safetyGate';
 import Modal from '../../components/Modal.jsx';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function IntakeForm() {
   const navigate = useNavigate();
@@ -72,6 +73,9 @@ export default function IntakeForm() {
 
   return (
     <div style={styles.page}>
+      <BackButton to="/dashboard" style={{ marginBottom: '1.25rem' }}>
+        ← Back to dashboard
+      </BackButton>
       <div style={styles.header}>
         <h2 style={styles.heading}>Patient Intake & Safety Gate</h2>
         <p style={styles.subheading}>Clinician use only. Please assess the patient's current status.</p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -94,6 +95,9 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '3rem 1.5rem', maxWidth: 1200, margin: '0 auto', fontFamily: "'Work Sans', sans-serif" }}>
+      <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+        ← Back to home
+      </BackButton>
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>

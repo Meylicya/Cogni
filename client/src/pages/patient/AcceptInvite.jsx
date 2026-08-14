@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function AcceptInvite() {
   const [symptomLevel, setSymptomLevel] = useState(0);
@@ -42,6 +43,9 @@ export default function AcceptInvite() {
   if (!tokenLooksValid) {
     return (
       <div style={styles.page}>
+        <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+          ← Back to home
+        </BackButton>
         <div className="harbor-card harbor-fade-in" style={styles.card}>
           <h2 style={styles.heading}>This invite link isn't valid</h2>
           <p style={styles.body}>
@@ -68,6 +72,9 @@ export default function AcceptInvite() {
 
   return (
     <div style={styles.page}>
+      <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+        ← Back to home
+      </BackButton>
       <div style={styles.header}>
         <h2 style={styles.heading}>Welcome to Harbor</h2>
         <p style={styles.subheading}>Complete your patient intake and set a password.</p>

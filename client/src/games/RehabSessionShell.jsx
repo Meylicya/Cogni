@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
+import BackButton, { backButtonStyle } from '../components/BackButton.jsx'
 import NBackGame from './nback/NBackGame'
 import ReactionAttentionGame from './reactionAttention/ReactionAttentionGame'
 import SequenceRecallGame from './sequencerecall/SequenceRecallGame'
@@ -99,6 +100,12 @@ const handleGameEvent = useCallback((event) => {
     <div style={styles.page}>
       <style>{cssVars}</style>
 
+      {!activeGame && (
+        <BackButton to="/" style={{ ...styles.pageBackLink, marginBottom: '1.25rem' }}>
+          ← Back to home
+        </BackButton>
+      )}
+
       <header style={styles.pageHeader}>
         <span style={styles.eyebrow}>Today's session</span>
         <h1 style={styles.pageHeading}>Recovery, one step at a time.</h1>
@@ -122,9 +129,9 @@ const handleGameEvent = useCallback((event) => {
 
       {activeGame && (
         <div>
-          <button style={styles.backLink} onClick={handleBackToGames}>
+          <BackButton onClick={handleBackToGames} style={styles.backLink}>
             ← Back to games
-          </button>
+          </BackButton>
           <activeGame.Component difficulty={difficulty} onGameEvent={handleGameEvent} />
           {lastEvent && lastEvent.gameId === activeGame.id && (
             <p style={styles.roundNote}>
@@ -320,19 +327,15 @@ const styles = {
     color: '#7C8B93',
     lineHeight: 1.4,
   },
+  pageBackLink: {
+    ...backButtonStyle,
+    maxWidth: 720,
+    margin: '0 auto',
+  },
   backLink: {
-    display: 'block',
+    ...backButtonStyle,
     margin: '0 auto 1rem',
     maxWidth: 440,
-    background: 'none',
-    border: 'none',
-    color: 'var(--harbor-teal)',
-    fontSize: 13,
-    fontWeight: 600,
-    fontFamily: "'Work Sans', sans-serif",
-    cursor: 'pointer',
-    padding: 0,
-    textAlign: 'left',
   },
   roundNote: {
     maxWidth: 440,

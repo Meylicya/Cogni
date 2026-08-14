@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import BackButton from '../../components/BackButton.jsx';
 
 export default function ClinicianOnboarding() {
   const navigate = useNavigate();
@@ -74,6 +75,9 @@ export default function ClinicianOnboarding() {
   // FORM VIEW
   return (
     <div style={styles.page}>
+      <BackButton to="/" style={{ marginBottom: '1.25rem' }}>
+        ← Back to home
+      </BackButton>
       <div style={styles.header}>
         <h2 style={styles.heading}>Clinician Registration</h2>
         <p style={styles.subheading}>
