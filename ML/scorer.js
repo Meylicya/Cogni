@@ -1,16 +1,13 @@
-
 const SEVERITY_MIN = 0;
 const SEVERITY_MAX = 6;
 
-
-const SYMPTOM_CATEGORIES = {
-  cognitive: ['concentration', 'memory', 'mentalFog'],
-  physical: ['headache', 'dizziness', 'fatigue', 'lightNoiseSensitivity', 'nausea', 'balance'],
-  emotional: ['irritability', 'lowMood', 'anxiety'],
-  sleep: ['sleepChange', 'unrested'], // "sleeping more/less than usual" -> sleepChange, "unrested" -> unrested
-  communication: ['wordFindingDifficulty', 'conversationSpeed'] // conditional
+const SCORE_FIELDS = {
+  cognitive: 'cognitiveScore',
+  physical: 'physicalScore',
+  emotional: 'emotionalScore',
+  sleep: 'sleepScore',
+  communication: 'communicationScore'
 };
-
 
 const CATEGORY_WEIGHTS = {
   cognitive: 1.5,
@@ -21,17 +18,11 @@ const CATEGORY_WEIGHTS = {
 };
 
 function activeCategories(languageSymptomsFlagged) {
-  return Object.keys(SYMPTOM_CATEGORIES).filter(
+  return Object.keys(SCORE_FIELDS).filter(
     cat => cat !== 'communication' || languageSymptomsFlagged
   );
 }
 
-/**
- * @param {Object} checkin 
- * @param {Object} opts
- * @param {boolean} opts.languageSymptomsFlagged
- * @returns {string[]} 
- **/
 function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const errors = [];
 
@@ -42,36 +33,32 @@ function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const expectedCategories = activeCategories(languageSymptomsFlagged);
 
   for (const category of expectedCategories) {
-    if (!(category in checkin)) {
-      errors.push(`missing category "${category}"`);
-      continue;
-    }
-    for (const item of SYMPTOM_CATEGORIES[category]) {
-      const value = checkin[category]?.[item];
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < SEVERITY_MIN ||
-        value > SEVERITY_MAX
-      ) {
-        errors.push(`${category}.${item} must be an integer between ${SEVERITY_MIN} and ${SEVERITY_MAX}, got ${value}`);
-      }
+    const field = SCORE_FIELDS[category];
+    const value = checkin[field];
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < SEVERITY_MIN ||
+      value > SEVERITY_MAX
+    ) {
+      errors.push(`${field} must be an integer between ${SEVERITY_MIN} and ${SEVERITY_MAX}, got ${value}`);
     }
   }
 
-  if (!languageSymptomsFlagged && checkin.communication) {
-    errors.push('communication category was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake');
+  const communicationValue = checkin[SCORE_FIELDS.communication];
+  if (!languageSymptomsFlagged && communicationValue !== undefined && communicationValue !== null) {
+    errors.push('communicationScore was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake');
   }
 
-  for (const category of Object.keys(checkin)) {
-    if (!(category in SYMPTOM_CATEGORIES)) {
-      errors.push(`unknown category "${category}"`);
+  const knownFields = new Set(Object.values(SCORE_FIELDS));
+  for (const key of Object.keys(checkin)) {
+    if (!knownFields.has(key)) {
+      errors.push(`unknown field "${key}"`);
     }
   }
 
   return errors;
 }
-
 
 function createSymptomCheckin(checkin, { languageSymptomsFlagged, timestamp = Date.now() } = {}) {
   const errors = validateSymptomCheckin(checkin, { languageSymptomsFlagged });
@@ -79,30 +66,19 @@ function createSymptomCheckin(checkin, { languageSymptomsFlagged, timestamp = Da
     throw new Error(`Invalid symptom check-in: ${errors.join('; ')}`);
   }
   return Object.freeze({
-    ...JSON.parse(JSON.stringify(checkin)), 
+    ...JSON.parse(JSON.stringify(checkin)),
     languageSymptomsFlagged: Boolean(languageSymptomsFlagged),
     timestamp
   });
 }
 
-
 class SymptomCheckinScorer {
   constructor({ baselineWindowSize = 7, worseningMargin = 0.15 } = {}) {
     this.baselineWindowSize = baselineWindowSize;
     this.worseningMargin = worseningMargin;
-    this.history = []; 
+    this.history = [];
   }
 
-  /**
-   * @param {Object} checkin 
-   * @param {Object} opts 
-   * @returns {{
-   *   normalizedSeverity: number,       // 0-1, feed straight into ZPDEngine.setSymptomSeverity()
-   *   byCategory: Object<string, number>, // 0-6 mean per active category
-   *   baseline: number|null,            // mean of prior check-ins, null if not enough history yet
-   *   worseningVsBaseline: boolean
-   * }}
-   */
   score(checkin, opts) {
     const record = createSymptomCheckin(checkin, opts);
     const categories = activeCategories(record.languageSymptomsFlagged);
@@ -112,16 +88,15 @@ class SymptomCheckinScorer {
     let weightTotal = 0;
 
     for (const category of categories) {
-      const items = SYMPTOM_CATEGORIES[category];
-      const mean = items.reduce((a, item) => a + record[category][item], 0) / items.length;
-      byCategory[category] = Number(mean.toFixed(2));
+      const value = record[SCORE_FIELDS[category]];
+      byCategory[category] = Number(value.toFixed(2));
 
       const weight = CATEGORY_WEIGHTS[category];
-      weightedSum += mean * weight;
+      weightedSum += value * weight;
       weightTotal += weight;
     }
 
-    const weightedMean = weightedSum / weightTotal; 
+    const weightedMean = weightedSum / weightTotal;
     const normalizedSeverity = weightedMean / SEVERITY_MAX;
 
     const baseline = this.history.length > 0
@@ -145,7 +120,7 @@ class SymptomCheckinScorer {
 export {
   SEVERITY_MIN,
   SEVERITY_MAX,
-  SYMPTOM_CATEGORIES,
+  SCORE_FIELDS,
   CATEGORY_WEIGHTS,
   validateSymptomCheckin,
   createSymptomCheckin,
