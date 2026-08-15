@@ -3,14 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
 
 /**
- * ENDPOINT (confirmed against server/routes/patients.js):
- *   POST /api/patients   body: { name, password, inviteToken }
- *   — note: token goes in the BODY, not the URL, and the route is just
- *   POST /api/patients (not /api/patients/accept-invite as earlier drafted).
- *   404 if token invalid/expired. 200 on success.
+ * ENDPOINT (server/routes/caregivers.js):
+ *   POST /api/caregivers/accept-invite   body: { name, password, inviteToken }
  */
-export default function AcceptInvite() {
-  const [symptomLevel, setSymptomLevel] = useState(0);
+export default function CaregiverAcceptInvite() {
   const { token } = useParams();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -26,12 +22,6 @@ export default function AcceptInvite() {
     e.preventDefault();
     setError('');
 
-    // HACKATHON SAFETY GATE: Block if symptoms are severe
-    if (symptomLevel > 7) {
-      alert("⚠️ SAFETY GATE: Your reported symptoms are very high. Please stop looking at screens and contact your clinician immediately. Account creation is temporarily blocked.");
-      return;
-    }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
       return;
@@ -44,7 +34,7 @@ export default function AcceptInvite() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:3001/api/patients', {
+      const response = await fetch('http://localhost:3001/api/caregivers/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, password, inviteToken: token }),
@@ -73,7 +63,7 @@ export default function AcceptInvite() {
         <div className="harbor-card harbor-fade-in" style={styles.card}>
           <h2 style={styles.heading}>This invite link isn't valid</h2>
           <p style={styles.body}>
-            It may have expired, or already been used. Ask your clinician to send a new one.
+            It may have expired, or already been used. Ask the clinician or patient who invited you to send a new one.
           </p>
         </div>
       </div>
@@ -85,8 +75,8 @@ export default function AcceptInvite() {
       <div style={styles.page}>
         <div className="harbor-card harbor-fade-in" style={{ ...styles.card, textAlign: 'center' }}>
           <h2 style={styles.heading}>You're all set</h2>
-          <p style={styles.body}>Your account is ready. You can start your recovery exercises now.</p>
-          <button className="harbor-btn harbor-btn-dark" onClick={() => navigate('/patient/login')} style={{ width: '100%', marginTop: 12 }}>
+          <p style={styles.body}>Your account is ready. You now have read-only access to recovery trends.</p>
+          <button className="harbor-btn harbor-btn-dark" onClick={() => navigate('/caregiver/login')} style={{ width: '100%', marginTop: 12 }}>
             Go to login →
           </button>
         </div>
@@ -105,27 +95,6 @@ export default function AcceptInvite() {
       </div>
 
       <form onSubmit={handleSubmit} className="harbor-card harbor-fade-in" style={styles.form}>
-
-        <div className="harbor-field" style={{ marginBottom: '0.5rem', textAlign: 'left', paddingBottom: '1rem', borderBottom: '1px solid #E2E8F0' }}>
-          <label className="harbor-label" style={{ display: 'block', marginBottom: '8px' }}>
-            Current Symptom Severity (0-10)
-          </label>
-          <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 12px 0' }}>
-            0 = No symptoms | 10 = Severe headache/nausea
-          </p>
-          <input
-            type="range"
-            min="0"
-            max="10"
-            value={symptomLevel}
-            onChange={(e) => setSymptomLevel(e.target.value)}
-            style={{ width: '100%', cursor: 'pointer' }}
-          />
-          <div style={{ textAlign: 'center', fontWeight: 'bold', marginTop: '8px', color: symptomLevel > 7 ? '#c5221f' : '#5B8A9A' }}>
-            Reported Level: {symptomLevel}
-          </div>
-        </div>
-
         <div className="harbor-field">
           <label className="harbor-label">Your Name</label>
           <input

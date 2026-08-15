@@ -10,10 +10,8 @@ router.post('/invite', async (req, res) => {
   try {
     const { email, name, clinicianId } = req.body;
 
-    // Generate a secure 32-character random token for the magic link
     const inviteToken = crypto.randomBytes(16).toString('hex');
 
-    // Create a pending patient record in the database
     const newPatient = new Patient({
       email,
       name: name || 'Pending Patient',
@@ -23,7 +21,6 @@ router.post('/invite', async (req, res) => {
     
     await newPatient.save();
 
-    // Fire off the email using our Nodemailer utility
     const emailSent = await sendPatientInviteEmail(email, name, inviteToken);
     
     if (!emailSent) {
@@ -42,17 +39,15 @@ router.post('/', async (req, res) => {
   try {
     const { name, password, inviteToken } = req.body;
 
-    // Find the patient in the database using the unique token from the URL
     const patient = await Patient.findOne({ inviteToken });
 
     if (!patient) {
       return res.status(404).json({ message: 'Invalid or expired invite link.' });
     }
 
-    // Update the patient's details
     patient.name = name;
     patient.password = password; // Note: In a production app, we would hash this with bcrypt!
-    patient.inviteToken = null; // Clear the token so the link cannot be used twice
+    patient.inviteToken = null;
     
     await patient.save();
 
@@ -60,6 +55,32 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('Accept Invite Error:', error);
     res.status(500).json({ message: 'Internal server error during account setup.' });
+  }
+});
+
+// 3. ENDPOINT TO LOG IN (returning patient, after accept-invite has set a password)
+// Same plaintext-comparison caveat as accept-invite above — not hashed yet.
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const patient = await Patient.findOne({ email });
+
+    if (!patient || !patient.password || patient.password !== password) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    if (patient.inviteToken) {
+      // Invite was never completed — shouldn't be able to log in yet.
+      return res.status(403).json({ message: 'Please finish setting up your account first.' });
+    }
+
+    res.status(200).json({
+      patient: { id: patient._id, name: patient.name, email: patient.email },
+    });
+  } catch (error) {
+    console.error('Patient Login Error:', error);
+    res.status(500).json({ message: 'Internal server error during login.' });
   }
 });
 

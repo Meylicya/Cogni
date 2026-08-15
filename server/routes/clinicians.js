@@ -19,6 +19,28 @@ router.post('/', async (req, res) => {
   }
 })
 
+// POST /api/clinicians/login
+// NOTE: matches the existing plaintext-comparison pattern already used in
+// patients.js (authCredentialHash is NOT actually hashed anywhere yet —
+// this is a known hackathon-scope limitation, not something introduced
+// here). Swap for bcrypt.compare() before this goes anywhere real.
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body
+    const clinician = await Clinician.findOne({ email })
+
+    if (!clinician || clinician.authCredentialHash !== password) {
+      return res.status(401).json({ message: 'Invalid credentials' })
+    }
+
+    res.status(200).json({
+      clinician: { id: clinician._id, name: clinician.name, email: clinician.email },
+    })
+  } catch (err) {
+    res.status(400).json({ error: err.message })
+  }
+})
+
 // GET /api/clinicians/:id
 router.get('/:id', async (req, res) => {
   try {

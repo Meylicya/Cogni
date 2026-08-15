@@ -10,6 +10,10 @@ import PatientInvite from './pages/clinician/PatientInvite.jsx'
 import CaregiverAccessGrant from './pages/shared/CaregiverAccessGrant.jsx'
 import EvidencePage from './pages/shared/EvidencePage.jsx'
 import AcceptInvite from './pages/patient/AcceptInvite.jsx'
+import PatientLogin from './pages/patient/PatientLogin.jsx'
+import DailySymptomCheckin from './pages/patient/DailySymptomCheckin.jsx'
+import CaregiverLogin from './pages/caregiver/CaregiverLogin.jsx'
+import CaregiverAcceptInvite from './pages/caregiver/CaregiverAcceptInvite.jsx'
 import RehabSessionShell from './games/RehabSessionShell.jsx'
 
 /**
@@ -37,6 +41,12 @@ function App() {
           <Route path="/clinician/intake" element={<IntakeForm />} />
           <Route path="/clinician/invite-patient" element={<PatientInvite />} />
           <Route path="/clinician/caregiver-access" element={<CaregiverAccessGrant />} />
+
+          <Route path="/patient/login" element={<PatientLogin />} />
+          <Route path="/patient/checkin" element={<DailySymptomCheckin />} />
+
+          <Route path="/caregiver/login" element={<CaregiverLogin />} />
+          <Route path="/caregiver-invite/:token" element={<CaregiverAcceptInvite />} />
 
           <Route path="/evidence" element={<EvidencePage />} />
           <Route path="/games" element={<GamesRoute />} />

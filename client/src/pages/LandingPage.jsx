@@ -1,15 +1,17 @@
 import { useNavigate } from 'react-router-dom'
 
 /**
- * LandingPage — the actual front door of the app. Replaces the old
- * placeholder `<div>Rehab App — home</div>` in App.jsx.
+ * LandingPage — front door of the app.
  *
- * Scope: positioning + credibility + a single clear next step for a
- * clinician. Deliberately does NOT offer a caregiver signup/access CTA
- * here — per CaregiverAccessGrant.jsx's own documented security design,
- * caregivers can't self-request access; only a clinician or patient can
- * grant it, from inside the clinician flow. Putting a caregiver button on
- * a public landing page would contradict that.
+ * UPDATED: now offers three distinct entry points — patient login,
+ * clinician login/signup, and caregiver login — instead of only a
+ * clinician signup CTA.
+ *
+ * Note on caregivers: caregivers still cannot self-register (see
+ * CaregiverAccessGrant.jsx's documented security design — access is
+ * granted by a clinician or patient, never self-requested). The
+ * caregiver button below is LOGIN ONLY, matching that constraint; there
+ * is deliberately no "sign up as a caregiver" CTA anywhere in the app.
  */
 export default function LandingPage() {
   const navigate = useNavigate()
@@ -26,10 +28,30 @@ export default function LandingPage() {
           clinician-supervised, privacy-first, and built for the sub-acute recovery phase.
         </p>
 
+        <div style={styles.roleGrid}>
+          <RoleCard
+            label="Patient"
+            description="Already have an account from your clinician's invite?"
+            primaryText="Log in"
+            onPrimary={() => navigate('/patient/login')}
+          />
+          <RoleCard
+            label="Clinician"
+            description="Manage patients, intake, and safety gates."
+            primaryText="Log in"
+            onPrimary={() => navigate('/login')}
+            secondaryText="Sign up"
+            onSecondary={() => navigate('/clinician/signup')}
+          />
+          <RoleCard
+            label="Caregiver"
+            description="Access is granted by a clinician or patient — not self-service."
+            primaryText="Log in"
+            onPrimary={() => navigate('/caregiver/login')}
+          />
+        </div>
+
         <div style={styles.ctaRow}>
-          <button style={styles.primaryButton} onClick={() => navigate('/clinician/signup')}>
-            Get started as a clinician
-          </button>
           <button style={styles.secondaryButton} onClick={() => navigate('/evidence')}>
             Read the evidence & guidelines
           </button>
@@ -64,6 +86,25 @@ export default function LandingPage() {
   )
 }
 
+function RoleCard({ label, description, primaryText, onPrimary, secondaryText, onSecondary }) {
+  return (
+    <div style={styles.roleCard}>
+      <span style={styles.roleLabel}>{label}</span>
+      <span style={styles.roleDescription}>{description}</span>
+      <div style={styles.roleButtonRow}>
+        <button style={styles.primaryButton} onClick={onPrimary}>
+          {primaryText}
+        </button>
+        {secondaryText && (
+          <button style={styles.secondaryButtonSmall} onClick={onSecondary}>
+            {secondaryText}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function InfoCard({ eyebrow, title, description }) {
   return (
     <div style={styles.card}>
@@ -91,7 +132,7 @@ const styles = {
     fontFamily: "'Work Sans', sans-serif",
   },
   hero: {
-    maxWidth: 640,
+    maxWidth: 760,
     margin: '0 auto 3rem',
     textAlign: 'center',
   },
@@ -116,7 +157,40 @@ const styles = {
     color: '#4A5A64',
     fontSize: 16,
     lineHeight: 1.6,
-    margin: '0 0 32px',
+    margin: '0 0 36px',
+  },
+  roleGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: 14,
+    marginBottom: 28,
+  },
+  roleCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    background: '#fff',
+    border: '1px solid #E1E8EC',
+    borderRadius: 14,
+    padding: '1.5rem 1.25rem',
+    textAlign: 'left',
+  },
+  roleLabel: {
+    fontFamily: "'Newsreader', serif",
+    fontSize: 19,
+    fontWeight: 600,
+    color: 'var(--harbor-navy)',
+  },
+  roleDescription: {
+    fontSize: 13,
+    color: '#7C8B93',
+    lineHeight: 1.5,
+    minHeight: 36,
+  },
+  roleButtonRow: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 4,
   },
   ctaRow: {
     display: 'flex',
@@ -129,11 +203,24 @@ const styles = {
     color: '#fff',
     border: 'none',
     borderRadius: 10,
-    padding: '13px 28px',
-    fontSize: 15,
+    padding: '11px 20px',
+    fontSize: 14,
     fontWeight: 600,
     fontFamily: "'Work Sans', sans-serif",
     cursor: 'pointer',
+    flex: 1,
+  },
+  secondaryButtonSmall: {
+    background: '#fff',
+    color: 'var(--harbor-navy)',
+    border: '1px solid #D9E1E6',
+    borderRadius: 10,
+    padding: '11px 20px',
+    fontSize: 14,
+    fontWeight: 600,
+    fontFamily: "'Work Sans', sans-serif",
+    cursor: 'pointer',
+    flex: 1,
   },
   secondaryButton: {
     background: '#fff',
