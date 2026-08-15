@@ -1,7 +1,6 @@
 import { validateGameSessionEvent } from './eventSchema.js';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './difficultyConfig.js';
 
-
 export class ZPDEngine {
   constructor({
     startingTier = 1,
@@ -13,7 +12,9 @@ export class ZPDEngine {
     lowerAccuracyThreshold = 0.55,
     maxErrorRate = 0.3,
     cooldownMs = 20000,
-    noErrorValues = ['none']
+    noErrorValues = ['none'],
+    hesitationBlockThreshold = 0.6,
+    heartRateConfidenceFloor = 2.5
   } = {}) {
     if (clinicianMinTier > clinicianMaxTier) {
       throw new Error('clinicianMinTier cannot be greater than clinicianMaxTier');
@@ -30,14 +31,18 @@ export class ZPDEngine {
     this.maxErrorRate = maxErrorRate;
     this.cooldownMs = cooldownMs;
     this.noErrorValues = new Set(noErrorValues);
+    this.hesitationBlockThreshold = hesitationBlockThreshold;
+    this.heartRateConfidenceFloor = heartRateConfidenceFloor;
 
-    this.windows = new Map(); // gameId -> GameSessionEvent[]
+    this.windows = new Map();
     this.lastAdjustmentAt = -Infinity;
 
     this.fatigueActive = false;
-    this.symptomSeverity = 0; // 0-1, set by the daily check-in scoring logic
+    this.symptomSeverity = 0;
+    this.voiceHesitation = null;
+    this.heartRateElevated = false;
+    this.heartRateConfidence = 0;
 
-    
     this.onTierChange = null;
   }
 
@@ -49,7 +54,6 @@ export class ZPDEngine {
     return Math.min(this.clinicianMaxTier, Math.max(this.clinicianMinTier, tier));
   }
 
-  
   setClinicianBounds(minTier, maxTier) {
     if (minTier > maxTier) throw new Error('minTier cannot be greater than maxTier');
     this.clinicianMinTier = this._clampToGlobalRange(minTier);
@@ -57,21 +61,27 @@ export class ZPDEngine {
     this.currentTier = this._clampToClinicianRange(this.currentTier);
   }
 
-  
   setFatigueActive(isActive) {
     this.fatigueActive = Boolean(isActive);
   }
 
-  
   setSymptomSeverity(score) {
     this.symptomSeverity = Math.min(1, Math.max(0, score));
+  }
+
+  setVoiceHesitation(score) {
+    this.voiceHesitation = score === null ? null : Math.min(1, Math.max(0, score));
+  }
+
+  setHeartRateStatus({ elevated, confidence }) {
+    this.heartRateElevated = Boolean(elevated);
+    this.heartRateConfidence = confidence ?? 0;
   }
 
   getCurrentTier() {
     return this.currentTier;
   }
 
-  
   recordEvent(event) {
     const errors = validateGameSessionEvent(event);
     if (errors.length > 0) {
@@ -105,9 +115,14 @@ export class ZPDEngine {
     const performingWell = accuracy >= this.upperAccuracyThreshold && errorRate <= this.maxErrorRate;
     const struggling = accuracy <= this.lowerAccuracyThreshold || errorRate > this.maxErrorRate;
 
-    const safetyBlockingStepUp = this.fatigueActive || this.symptomSeverity >= 0.6;
+    const hesitant = this.voiceHesitation !== null && this.voiceHesitation > this.hesitationBlockThreshold;
+    const heartRateConfidentlyElevated =
+      this.heartRateElevated && this.heartRateConfidence >= this.heartRateConfidenceFloor;
 
-    let direction = 0; // -1 down, 0 hold, +1 up
+    const safetyBlockingStepUp =
+      this.fatigueActive || this.symptomSeverity >= 0.6 || hesitant || heartRateConfidentlyElevated;
+
+    let direction = 0;
     let reason = 'in the target zone - holding steady';
 
     if (struggling) {
@@ -117,9 +132,15 @@ export class ZPDEngine {
       direction = 1;
       reason = `accuracy ${accuracy.toFixed(2)} and speeding up - stepping up`;
     } else if (performingWell && safetyBlockingStepUp) {
-      reason = this.fatigueActive
-        ? 'performance is strong but fatigue guard is active - holding, not increasing difficulty'
-        : 'performance is strong but today\'s symptom check-in is elevated - holding, not increasing difficulty';
+      if (this.fatigueActive) {
+        reason = 'performance is strong but fatigue guard is active - holding, not increasing difficulty';
+      } else if (this.symptomSeverity >= 0.6) {
+        reason = 'performance is strong but today\'s symptom check-in is elevated - holding, not increasing difficulty';
+      } else if (hesitant) {
+        reason = `performance is strong but voice hesitation is elevated (${this.voiceHesitation.toFixed(2)}) - holding, not increasing difficulty`;
+      } else {
+        reason = `performance is strong but heart rate reads elevated (confidence ${this.heartRateConfidence.toFixed(2)}) - holding, not increasing difficulty`;
+      }
     } else if (performingWell && gettingSlower) {
       reason = 'accuracy is strong but response times are drifting up - holding for now';
     }
@@ -140,7 +161,7 @@ export class ZPDEngine {
 
     this.currentTier = proposedTier;
     this.lastAdjustmentAt = now;
-    this.windows.set(gameId, []); 
+    this.windows.set(gameId, []);
 
     if (this.onTierChange) {
       this.onTierChange(this.currentTier, { previousTier, reason, gameId, stats });

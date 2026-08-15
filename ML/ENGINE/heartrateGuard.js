@@ -1,13 +1,10 @@
-/**
-  IMPORTANT: do not wire this up as the sole trigger for anything.
- **/
 export class HeartRateGuard {
   constructor({
-    windowSeconds = 8,      // how much history we analyze at once
-    sampleHz = 20,          // we resample the raw signal to a fixed rate before analysis
+    windowSeconds = 8,
+    sampleHz = 20,
     minBpm = 45,
     maxBpm = 180,
-    minConfidence = 2.5     // peak power must be this many times the average to be trusted
+    minConfidence = 2.5
   } = {}) {
     this.windowSeconds = windowSeconds;
     this.sampleHz = sampleHz;
@@ -15,7 +12,7 @@ export class HeartRateGuard {
     this.maxBpm = maxBpm;
     this.minConfidence = minConfidence;
 
-    this.raw = []; // t,r,g,b mean ROI color per processed frame
+    this.raw = [];
     this.baselineBpm = null;
     this.bpmHistory = [];
 
@@ -29,7 +26,6 @@ export class HeartRateGuard {
     this.bpmHistory = [];
   }
 
-  
   getROIBoundingBoxes(landmarks, width, height, patchRadius = 12) {
     const anchors = {
       forehead: 10,
@@ -61,7 +57,7 @@ export class HeartRateGuard {
     try {
       data = this._roiCtx.getImageData(0, 0, box.w, box.h).data;
     } catch {
-      return null; // e.g canvas tainted or box out of bounds
+      return null;
     }
 
     let r = 0, g = 0, b = 0;
@@ -74,7 +70,6 @@ export class HeartRateGuard {
     return { r: r / n, g: g / n, b: b / n };
   }
 
-  
   processLandmarks(landmarks, videoElement, width, height, timestamp) {
     const boxes = this.getROIBoundingBoxes(landmarks, width, height);
     const samples = ['forehead', 'leftCheek', 'rightCheek']
@@ -98,13 +93,18 @@ export class HeartRateGuard {
   }
 
   _currentResult() {
-    if (this.raw.length < this.sampleHz * 3) {
-     
+    const MIN_SAMPLES_FOR_ESTIMATE = 45;
+
+    if (this.raw.length < MIN_SAMPLES_FOR_ESTIMATE) {
       return { bpm: null, confidence: 0, elevated: false };
     }
 
-    const signal = this._posSignal(this._resample(this.raw));
-    const { bpm, confidence } = this._estimateBpm(signal);
+    const spanMs = this.raw[this.raw.length - 1].t - this.raw[0].t;
+    const achievedHz = spanMs > 0 ? (this.raw.length - 1) / (spanMs / 1000) : this.sampleHz;
+    const effectiveHz = Math.min(this.sampleHz, Math.max(this.minBpm / 60 * 2, achievedHz));
+
+    const signal = this._posSignal(this._resample(this.raw, effectiveHz));
+    const { bpm, confidence } = this._estimateBpm(signal, effectiveHz);
 
     if (bpm === null || confidence < this.minConfidence) {
       return { bpm: null, confidence, elevated: false };
@@ -113,29 +113,26 @@ export class HeartRateGuard {
     if (this.baselineBpm === null) {
       this.baselineBpm = bpm;
     } else {
-      
       this.baselineBpm = this.baselineBpm * 0.95 + bpm * 0.05;
     }
 
     this.bpmHistory.push(bpm);
     if (this.bpmHistory.length > 20) this.bpmHistory.shift();
 
-
     const elevated = bpm > this.baselineBpm * 1.15;
 
     return { bpm: Math.round(bpm), confidence: Number(confidence.toFixed(2)), elevated };
   }
 
-  
-  _resample(raw) {
+  _resample(raw, targetHz = this.sampleHz) {
     const t0 = raw[0].t;
     const tN = raw[raw.length - 1].t;
-    const n = Math.floor(((tN - t0) / 1000) * this.sampleHz);
+    const n = Math.floor(((tN - t0) / 1000) * targetHz);
     if (n < 8) return raw;
 
     const out = [];
     for (let i = 0; i < n; i++) {
-      const t = t0 + (i * 1000) / this.sampleHz;
+      const t = t0 + (i * 1000) / targetHz;
       let j = 0;
       while (j < raw.length - 2 && raw[j + 1].t < t) j++;
       const a = raw[j], b = raw[Math.min(j + 1, raw.length - 1)];
@@ -151,7 +148,6 @@ export class HeartRateGuard {
     return out;
   }
 
-  /** POS algorithm **/
   _posSignal(samples) {
     const rs = samples.map(s => s.r);
     const gs = samples.map(s => s.g);
@@ -177,10 +173,8 @@ export class HeartRateGuard {
     return h.map(v => v - hMean);
   }
 
-  
-  _estimateBpm(signal) {
+  _estimateBpm(signal, fs = this.sampleHz) {
     const N = signal.length;
-    const fs = this.sampleHz;
 
     const goertzelPower = (freqHz) => {
       const k = Math.round((freqHz / fs) * N);

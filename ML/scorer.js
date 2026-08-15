@@ -1,16 +1,38 @@
+/**
+ * scorer.js
+ *
+ * Rewritten to match the check-in shape actually persisted by the API/DB
+ * layer (symptomCheckins.js + Symptomcheckin.js): one pre-aggregated 0-6
+ * score per category, not per-item breakdowns.
+ *
+ *   { cognitiveScore, physicalScore, emotionalScore, sleepScore, communicationScore }
+ *
+ * The previous version of this file expected each category to be an
+ * object of individually-scored items (e.g. cognitive.concentration,
+ * cognitive.memory, cognitive.mentalFog) and averaged those into a
+ * per-category mean itself. That per-item detail was never actually
+ * collected anywhere in this codebase — the DB model only ever stored
+ * one number per category — so that averaging step served no purpose
+ * here and has been removed rather than faked.
+ *
+ * Everything downstream of "one number per category" is unchanged:
+ * same category weights, same baseline/worsening-vs-baseline logic,
+ * same 0-1 normalizedSeverity output that feeds
+ * ZPDEngine.setVoiceHesitation()'s sibling, setSymptomSeverity().
+ */
 
 const SEVERITY_MIN = 0;
 const SEVERITY_MAX = 6;
 
-
-const SYMPTOM_CATEGORIES = {
-  cognitive: ['concentration', 'memory', 'mentalFog'],
-  physical: ['headache', 'dizziness', 'fatigue', 'lightNoiseSensitivity', 'nausea', 'balance'],
-  emotional: ['irritability', 'lowMood', 'anxiety'],
-  sleep: ['sleepChange', 'unrested'], // "sleeping more/less than usual" -> sleepChange, "unrested" -> unrested
-  communication: ['wordFindingDifficulty', 'conversationSpeed'] // conditional
+// Maps each category to the field name it actually arrives as, matching
+// Symptomcheckin.js's schema field names exactly.
+const CATEGORY_FIELDS = {
+  cognitive: 'cognitiveScore',
+  physical: 'physicalScore',
+  emotional: 'emotionalScore',
+  sleep: 'sleepScore',
+  communication: 'communicationScore' // conditional — only when languageSymptomsFlagged
 };
-
 
 const CATEGORY_WEIGHTS = {
   cognitive: 1.5,
@@ -21,16 +43,18 @@ const CATEGORY_WEIGHTS = {
 };
 
 function activeCategories(languageSymptomsFlagged) {
-  return Object.keys(SYMPTOM_CATEGORIES).filter(
+  return Object.keys(CATEGORY_FIELDS).filter(
     cat => cat !== 'communication' || languageSymptomsFlagged
   );
 }
 
 /**
- * @param {Object} checkin 
+ * @param {Object} checkin - shape from symptomCheckins.js's req.body /
+ *   Symptomcheckin.js's document: { cognitiveScore, physicalScore,
+ *   emotionalScore, sleepScore, communicationScore }
  * @param {Object} opts
  * @param {boolean} opts.languageSymptomsFlagged
- * @returns {string[]} 
+ * @returns {string[]}
  **/
 function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const errors = [];
@@ -42,63 +66,63 @@ function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const expectedCategories = activeCategories(languageSymptomsFlagged);
 
   for (const category of expectedCategories) {
-    if (!(category in checkin)) {
-      errors.push(`missing category "${category}"`);
-      continue;
-    }
-    for (const item of SYMPTOM_CATEGORIES[category]) {
-      const value = checkin[category]?.[item];
-      if (
-        typeof value !== 'number' ||
-        !Number.isInteger(value) ||
-        value < SEVERITY_MIN ||
-        value > SEVERITY_MAX
-      ) {
-        errors.push(`${category}.${item} must be an integer between ${SEVERITY_MIN} and ${SEVERITY_MAX}, got ${value}`);
-      }
+    const field = CATEGORY_FIELDS[category];
+    const value = checkin[field];
+    if (
+      typeof value !== 'number' ||
+      !Number.isInteger(value) ||
+      value < SEVERITY_MIN ||
+      value > SEVERITY_MAX
+    ) {
+      errors.push(`${field} must be an integer between ${SEVERITY_MIN} and ${SEVERITY_MAX}, got ${value}`);
     }
   }
 
-  if (!languageSymptomsFlagged && checkin.communication) {
-    errors.push('communication category was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake');
-  }
-
-  for (const category of Object.keys(checkin)) {
-    if (!(category in SYMPTOM_CATEGORIES)) {
-      errors.push(`unknown category "${category}"`);
-    }
+  // Mirrors Symptomcheckin.js's own contract: communicationScore only
+  // makes sense when the patient was flagged for language symptoms.
+  const hasCommunicationScore =
+    checkin.communicationScore !== null && checkin.communicationScore !== undefined;
+  if (!languageSymptomsFlagged && hasCommunicationScore) {
+    errors.push(
+      'communicationScore was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake'
+    );
   }
 
   return errors;
 }
 
-
+/**
+ * Constructs a validated, frozen check-in record. Same "fail loud, fail
+ * at construction time" contract the previous version had.
+ */
 function createSymptomCheckin(checkin, { languageSymptomsFlagged, timestamp = Date.now() } = {}) {
   const errors = validateSymptomCheckin(checkin, { languageSymptomsFlagged });
   if (errors.length > 0) {
     throw new Error(`Invalid symptom check-in: ${errors.join('; ')}`);
   }
   return Object.freeze({
-    ...JSON.parse(JSON.stringify(checkin)), 
+    ...JSON.parse(JSON.stringify(checkin)),
     languageSymptomsFlagged: Boolean(languageSymptomsFlagged),
     timestamp
   });
 }
 
-
 class SymptomCheckinScorer {
   constructor({ baselineWindowSize = 7, worseningMargin = 0.15 } = {}) {
     this.baselineWindowSize = baselineWindowSize;
     this.worseningMargin = worseningMargin;
-    this.history = []; 
+    this.history = [];
   }
 
   /**
-   * @param {Object} checkin 
-   * @param {Object} opts 
+   * @param {Object} checkin - { cognitiveScore, physicalScore,
+   *   emotionalScore, sleepScore, communicationScore } as persisted by
+   *   symptomCheckins.js
+   * @param {Object} opts
+   * @param {boolean} opts.languageSymptomsFlagged
    * @returns {{
    *   normalizedSeverity: number,       // 0-1, feed straight into ZPDEngine.setSymptomSeverity()
-   *   byCategory: Object<string, number>, // 0-6 mean per active category
+   *   byCategory: Object<string, number>, // 0-6 score per active category
    *   baseline: number|null,            // mean of prior check-ins, null if not enough history yet
    *   worseningVsBaseline: boolean
    * }}
@@ -112,16 +136,16 @@ class SymptomCheckinScorer {
     let weightTotal = 0;
 
     for (const category of categories) {
-      const items = SYMPTOM_CATEGORIES[category];
-      const mean = items.reduce((a, item) => a + record[category][item], 0) / items.length;
-      byCategory[category] = Number(mean.toFixed(2));
+      const field = CATEGORY_FIELDS[category];
+      const value = record[field];
+      byCategory[category] = value;
 
       const weight = CATEGORY_WEIGHTS[category];
-      weightedSum += mean * weight;
+      weightedSum += value * weight;
       weightTotal += weight;
     }
 
-    const weightedMean = weightedSum / weightTotal; 
+    const weightedMean = weightedSum / weightTotal;
     const normalizedSeverity = weightedMean / SEVERITY_MAX;
 
     const baseline = this.history.length > 0
@@ -145,7 +169,7 @@ class SymptomCheckinScorer {
 export {
   SEVERITY_MIN,
   SEVERITY_MAX,
-  SYMPTOM_CATEGORIES,
+  CATEGORY_FIELDS,
   CATEGORY_WEIGHTS,
   validateSymptomCheckin,
   createSymptomCheckin,
