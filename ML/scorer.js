@@ -1,12 +1,37 @@
+/**
+ * scorer.js
+ *
+ * Rewritten to match the check-in shape actually persisted by the API/DB
+ * layer (symptomCheckins.js + Symptomcheckin.js): one pre-aggregated 0-6
+ * score per category, not per-item breakdowns.
+ *
+ *   { cognitiveScore, physicalScore, emotionalScore, sleepScore, communicationScore }
+ *
+ * The previous version of this file expected each category to be an
+ * object of individually-scored items (e.g. cognitive.concentration,
+ * cognitive.memory, cognitive.mentalFog) and averaged those into a
+ * per-category mean itself. That per-item detail was never actually
+ * collected anywhere in this codebase — the DB model only ever stored
+ * one number per category — so that averaging step served no purpose
+ * here and has been removed rather than faked.
+ *
+ * Everything downstream of "one number per category" is unchanged:
+ * same category weights, same baseline/worsening-vs-baseline logic,
+ * same 0-1 normalizedSeverity output that feeds
+ * ZPDEngine.setVoiceHesitation()'s sibling, setSymptomSeverity().
+ */
+
 const SEVERITY_MIN = 0;
 const SEVERITY_MAX = 6;
 
-const SCORE_FIELDS = {
+// Maps each category to the field name it actually arrives as, matching
+// Symptomcheckin.js's schema field names exactly.
+const CATEGORY_FIELDS = {
   cognitive: 'cognitiveScore',
   physical: 'physicalScore',
   emotional: 'emotionalScore',
   sleep: 'sleepScore',
-  communication: 'communicationScore'
+  communication: 'communicationScore' // conditional — only when languageSymptomsFlagged
 };
 
 const CATEGORY_WEIGHTS = {
@@ -18,11 +43,19 @@ const CATEGORY_WEIGHTS = {
 };
 
 function activeCategories(languageSymptomsFlagged) {
-  return Object.keys(SCORE_FIELDS).filter(
+  return Object.keys(CATEGORY_FIELDS).filter(
     cat => cat !== 'communication' || languageSymptomsFlagged
   );
 }
 
+/**
+ * @param {Object} checkin - shape from symptomCheckins.js's req.body /
+ *   Symptomcheckin.js's document: { cognitiveScore, physicalScore,
+ *   emotionalScore, sleepScore, communicationScore }
+ * @param {Object} opts
+ * @param {boolean} opts.languageSymptomsFlagged
+ * @returns {string[]}
+ **/
 function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const errors = [];
 
@@ -33,7 +66,7 @@ function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
   const expectedCategories = activeCategories(languageSymptomsFlagged);
 
   for (const category of expectedCategories) {
-    const field = SCORE_FIELDS[category];
+    const field = CATEGORY_FIELDS[category];
     const value = checkin[field];
     if (
       typeof value !== 'number' ||
@@ -45,21 +78,23 @@ function validateSymptomCheckin(checkin, { languageSymptomsFlagged }) {
     }
   }
 
-  const communicationValue = checkin[SCORE_FIELDS.communication];
-  if (!languageSymptomsFlagged && communicationValue !== undefined && communicationValue !== null) {
-    errors.push('communicationScore was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake');
-  }
-
-  const knownFields = new Set(Object.values(SCORE_FIELDS));
-  for (const key of Object.keys(checkin)) {
-    if (!knownFields.has(key)) {
-      errors.push(`unknown field "${key}"`);
-    }
+  // Mirrors Symptomcheckin.js's own contract: communicationScore only
+  // makes sense when the patient was flagged for language symptoms.
+  const hasCommunicationScore =
+    checkin.communicationScore !== null && checkin.communicationScore !== undefined;
+  if (!languageSymptomsFlagged && hasCommunicationScore) {
+    errors.push(
+      'communicationScore was submitted but languageSymptomsFlagged is false - this patient was not flagged for language symptoms at intake'
+    );
   }
 
   return errors;
 }
 
+/**
+ * Constructs a validated, frozen check-in record. Same "fail loud, fail
+ * at construction time" contract the previous version had.
+ */
 function createSymptomCheckin(checkin, { languageSymptomsFlagged, timestamp = Date.now() } = {}) {
   const errors = validateSymptomCheckin(checkin, { languageSymptomsFlagged });
   if (errors.length > 0) {
@@ -79,6 +114,19 @@ class SymptomCheckinScorer {
     this.history = [];
   }
 
+  /**
+   * @param {Object} checkin - { cognitiveScore, physicalScore,
+   *   emotionalScore, sleepScore, communicationScore } as persisted by
+   *   symptomCheckins.js
+   * @param {Object} opts
+   * @param {boolean} opts.languageSymptomsFlagged
+   * @returns {{
+   *   normalizedSeverity: number,       // 0-1, feed straight into ZPDEngine.setSymptomSeverity()
+   *   byCategory: Object<string, number>, // 0-6 score per active category
+   *   baseline: number|null,            // mean of prior check-ins, null if not enough history yet
+   *   worseningVsBaseline: boolean
+   * }}
+   */
   score(checkin, opts) {
     const record = createSymptomCheckin(checkin, opts);
     const categories = activeCategories(record.languageSymptomsFlagged);
@@ -88,8 +136,9 @@ class SymptomCheckinScorer {
     let weightTotal = 0;
 
     for (const category of categories) {
-      const value = record[SCORE_FIELDS[category]];
-      byCategory[category] = Number(value.toFixed(2));
+      const field = CATEGORY_FIELDS[category];
+      const value = record[field];
+      byCategory[category] = value;
 
       const weight = CATEGORY_WEIGHTS[category];
       weightedSum += value * weight;
@@ -120,7 +169,7 @@ class SymptomCheckinScorer {
 export {
   SEVERITY_MIN,
   SEVERITY_MAX,
-  SCORE_FIELDS,
+  CATEGORY_FIELDS,
   CATEGORY_WEIGHTS,
   validateSymptomCheckin,
   createSymptomCheckin,

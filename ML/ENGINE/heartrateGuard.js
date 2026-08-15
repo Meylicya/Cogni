@@ -211,4 +211,3 @@ export class HeartRateGuard {
     return { bpm: bestBpm, confidence };
   }
 }
-
