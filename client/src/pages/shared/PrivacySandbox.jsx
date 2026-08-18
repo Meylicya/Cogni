@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 export default function PrivacySandbox() {
+  const { clinicianId: sessionClinicianId } = useSession();
   const [isEncrypting, setIsEncrypting] = useState(false);
   const [encryptedData, setEncryptedData] = useState(null);
 
@@ -9,15 +11,11 @@ export default function PrivacySandbox() {
   const [patientId, setPatientId] = useState('');
   const [score, setScore] = useState(0);
   const [reactionTime, setReactionTime] = useState(0);
-  const [clinicianId, setClinicianId] = useState('No active session');
 
-  // On load, grab the REAL clinician ID from the local session we built earlier
-  useEffect(() => {
-    const liveClinicianId = localStorage.getItem('clinician_id');
-    if (liveClinicianId) {
-      setClinicianId(liveClinicianId);
-    }
-  }, []);
+  // Pull the active clinicianId from SessionContext (was reading
+  // localStorage with a typo'd key `clinician_id` — the real key is
+  // `clinicianId` and now SessionContext.login() is the only writer).
+  const clinicianId = sessionClinicianId || 'No active session';
 
   // Dynamically generate the JSON based on whatever is typed in the UI
   const rawPayload = JSON.stringify({

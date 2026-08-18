@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { clinicianId, loading: sessionLoading } = useSession();
   const [patients, setPatients] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const clinicianId = localStorage.getItem('clinicianId');
+    if (sessionLoading) return;
 
     if (!clinicianId) {
       navigate('/login');
@@ -26,13 +28,13 @@ export default function Dashboard() {
 
         const allPatients = await response.json();
         const myPatients = allPatients.filter(p => p.clinicianId === clinicianId);
-        
+
         // HACKATHON FIX: Silently set the newest patient as the "Active Player"
         if (myPatients.length > 0) {
-          const newestPatient = myPatients[myPatients.length - 1]; 
+          const newestPatient = myPatients[myPatients.length - 1];
           localStorage.setItem('demo_active_patient_id', newestPatient._id);
         }
-        
+
         setPatients(myPatients);
       } catch (err) {
         console.error("Dashboard fetch error:", err);
@@ -43,7 +45,7 @@ export default function Dashboard() {
     };
 
     fetchDashboardData();
-  }, [navigate]);
+  }, [clinicianId, sessionLoading, navigate]);
 
   // THE PRO PDF EXPORT FUNCTION
   const exportPDF = async (patientId, patientName, patientEmail, gameName, gameScore) => {

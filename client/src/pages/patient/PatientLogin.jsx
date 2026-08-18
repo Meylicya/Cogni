@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 /**
  * PatientLogin — for a returning patient who already set a password via
@@ -13,6 +14,7 @@ import BackButton from '../../components/BackButton.jsx';
  */
 export default function PatientLogin() {
   const navigate = useNavigate();
+  const { login } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -31,9 +33,12 @@ export default function PatientLogin() {
       if (response.ok) {
         const data = await response.json();
 
-        // Same localStorage pattern syncLayer.js's getCurrentPatientId() reads.
+        // Route through SessionContext — it owns the localStorage key AND
+        // clears any other role's ID (single-user assumption), AND the
+        // storage event listener in the context will pick this up in
+        // other tabs.
         if (data.patient && data.patient.id) {
-          localStorage.setItem('patientId', data.patient.id);
+          login('patient', data.patient.id);
         }
 
         navigate('/games');

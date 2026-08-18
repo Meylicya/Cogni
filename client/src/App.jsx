@@ -3,6 +3,8 @@ import Dashboard from './pages/clinician/Dashboard.jsx';
 import Login from './pages/clinician/Login.jsx';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { SessionProvider, useSession } from './context/SessionContext.jsx'
+import { SessionEngineProvider } from './context/SessionEngineContext.jsx'
+import RequireAuth from './components/RequireAuth.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import ClinicianOnboarding from './pages/clinician/ClinicianOnboarding.jsx'
 import IntakeForm from './pages/clinician/IntakeForm.jsx'
@@ -17,12 +19,10 @@ import CaregiverAcceptInvite from './pages/caregiver/CaregiverAcceptInvite.jsx'
 import RehabSessionShell from './games/RehabSessionShell.jsx'
 
 /**
- * languageSymptomsFlagged used to arrive as a ?language=1 URL param on
- * this route — that's gone now. RehabSessionShell resolves it internally
- * via startPatientSession(patientId), same call that sets up the ZPD
- * engine. All this route needs to provide is patientId, from
- * SessionContext (see context/SessionContext.jsx — still a dev stub
- * until Person 3 has real auth).
+ * GamesRoute — thin wrapper that hands the authenticated patientId to
+ * RehabSessionShell. The shell itself reads it from SessionContext
+ * (useSessionEngine bootstraps against it), so passing it as a prop is
+ * kept for backward compatibility with old call sites.
  */
 function GamesRoute() {
   const { patientId } = useSession()
@@ -33,28 +33,51 @@ function App() {
   return (
     <SessionProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
+        <SessionEngineProvider>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
 
-          <Route path="/login" element={<Login />} />
-          <Route path="/clinician/signup" element={<ClinicianOnboarding />} />
-          <Route path="/clinician/intake" element={<IntakeForm />} />
-          <Route path="/clinician/invite-patient" element={<PatientInvite />} />
-          <Route path="/clinician/caregiver-access" element={<CaregiverAccessGrant />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/clinician/signup" element={<ClinicianOnboarding />} />
+            <Route
+              path="/clinician/intake"
+              element={<RequireAuth role="clinician"><IntakeForm /></RequireAuth>}
+            />
+            <Route
+              path="/clinician/invite-patient"
+              element={<RequireAuth role="clinician"><PatientInvite /></RequireAuth>}
+            />
+            <Route
+              path="/clinician/caregiver-access"
+              element={<RequireAuth role="clinician"><CaregiverAccessGrant /></RequireAuth>}
+            />
 
-          <Route path="/patient/login" element={<PatientLogin />} />
-          <Route path="/patient/checkin" element={<DailySymptomCheckin />} />
+            <Route path="/patient/login" element={<PatientLogin />} />
+            <Route
+              path="/patient/checkin"
+              element={<RequireAuth role="patient"><DailySymptomCheckin /></RequireAuth>}
+            />
 
-          <Route path="/caregiver/login" element={<CaregiverLogin />} />
-          <Route path="/caregiver-invite/:token" element={<CaregiverAcceptInvite />} />
+            <Route path="/caregiver/login" element={<CaregiverLogin />} />
+            <Route path="/caregiver-invite/:token" element={<CaregiverAcceptInvite />} />
 
-          <Route path="/evidence" element={<EvidencePage />} />
-          <Route path="/games" element={<GamesRoute />} />
-          <Route path="/invite/:token" element={<AcceptInvite />} />
+            <Route path="/evidence" element={<EvidencePage />} />
+            <Route
+              path="/games"
+              element={<RequireAuth role="patient"><GamesRoute /></RequireAuth>}
+            />
+            <Route path="/invite/:token" element={<AcceptInvite />} />
 
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/privacy-sandbox" element={<PrivacySandbox />} />
-        </Routes>
+            <Route
+              path="/dashboard"
+              element={<RequireAuth role={['clinician', 'caregiver']}><Dashboard /></RequireAuth>}
+            />
+            <Route
+              path="/privacy-sandbox"
+              element={<RequireAuth role="clinician"><PrivacySandbox /></RequireAuth>}
+            />
+          </Routes>
+        </SessionEngineProvider>
       </BrowserRouter>
     </SessionProvider>
   )

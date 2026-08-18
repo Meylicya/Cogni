@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 export default function PatientInvite() {
+  const { clinicianId } = useSession();
   const [patientName, setPatientName] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -17,30 +19,30 @@ export default function PatientInvite() {
     if (injuryTiming === 'acute') {
       setStatusMessage('⚠️ SAFETY GATE ACTIVATED: Patient is within 48 hours of injury. Cognitive rehabilitation is strictly contraindicated during the acute phase. Please prescribe rest and re-evaluate later.');
       setIsSending(false);
-      return; 
+      return;
     }
-    
+
     if (!injuryTiming) {
       setStatusMessage('Please select the patient\'s injury timing.');
       setIsSending(false);
       return;
     }
 
-    // Grab the ID we saved during login!
-    const savedClinicianId = localStorage.getItem('clinicianId');
-
-    const payload = { 
-      name: patientName, 
-      email: patientEmail, 
-      clinicianId: savedClinicianId 
-    };
-
-    // FIXED: Now checking the correct variable name
-    if (!savedClinicianId) {
+    // Pull the active clinicianId from SessionContext — the same value
+    // the clinician login wrote. If it's missing, the route guard on
+    // /clinician/* should have already bounced them to /login; this
+    // belt-and-suspenders message is the friendly fallback.
+    if (!clinicianId) {
       setStatusMessage('Error: You must be logged in to invite a patient. Please log out and back in.');
       setIsSending(false);
       return;
     }
+
+    const payload = {
+      name: patientName,
+      email: patientEmail,
+      clinicianId,
+    };
 
     try {
       // Hitting the new Node/Express invite route we just wrote!

@@ -1,10 +1,7 @@
 import { Router } from 'express'
 import crypto from 'crypto'
 import { Caregiver, CaregiverPatientLink } from '../models/index.js'
-// TODO(Person 3): add sendCaregiverInviteEmail to utils/mailer.js, same
-// shape as sendPatientInviteEmail(email, name, token). Wiring assumes it
-// exists — swap this import once it's written.
-//import { sendCaregiverInviteEmail } from '../utils/mailer.js'
+import { sendCaregiverInviteEmail } from '../utils/mailer.js'
 
 const router = Router()
 

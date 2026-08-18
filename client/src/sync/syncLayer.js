@@ -7,14 +7,17 @@
  * actively rejects patientId being passed into createGameSessionEvent,
  * so this file is the deliberate seam where that boundary gets crossed.
  *
- * Current state: no auth exists yet (Person 4's login flow isn't built),
- * so getCurrentPatientId() below is a stub. Swap its implementation once
- * real auth/session state exists — nothing else in this file should need
- * to change.
+ * Auth: SessionContext (see context/SessionContext.jsx) is the source of
+ * truth for the active role. It already persists the patientId to
+ * localStorage under the same key we read here, so we can resolve the
+ * current patientId synchronously from a non-React call site. When
+ * real auth lands, this becomes "read the active session from the
+ * SessionContext cache" — no other change needed here.
  *
- * Encryption: NOT yet implemented here. Per the build order, client-side
- * AES-GCM (Web Crypto API) is the next piece — see the encryptPayload()
- * stub below for exactly where it plugs in.
+ * Encryption: client-side AES-GCM via webCrypto.js — only the actual
+ * score payload (accuracy / latency / errorType) is encrypted, the
+ * metadata (gameId, difficultyLevel, completedAt) stays plain so the
+ * dashboard can filter/sort without decrypting every row.
  */
 
 import { validateGameSessionEvent } from '../../../shared/eventSchema.js'
@@ -23,16 +26,14 @@ import { getOrCreatePatientKey, encryptScores } from './webCrypto.js'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
 /**
- * STUB — replace once Person 4's auth/invite flow exists.
- * For now, reads a patientId from localStorage so the sync layer can be
- * tested end-to-end without real auth. Set it manually in the browser
- * console during dev: localStorage.setItem('patientId', '<a real _id from your DB>')
+ * Reads the active patientId from SessionContext's localStorage key.
+ * We can't use the React hook from this non-component call site, so we
+ * read the same key SessionContext writes to. The two stay in lockstep
+ * as long as login/logout go through the context (see Login.jsx pages).
  *
  * @returns {string|null}
  */
 function getCurrentPatientId() {
-  // TODO(Person 4 / auth): replace with real authenticated patient ID,
-  // e.g. pulled from a JWT/session context, not localStorage.
   return typeof window !== 'undefined' ? window.localStorage.getItem('patientId') : null
 }
 

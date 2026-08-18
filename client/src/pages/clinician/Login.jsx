@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -22,8 +24,11 @@ export default function Login() {
       if (response.ok) {
         const data = await response.json();
 
+        // Route through SessionContext — single source of truth, clears
+        // any other role's ID, and the storage event listener mirrors
+        // the change in other tabs.
         if (data.clinician && data.clinician.id) {
-          localStorage.setItem('clinicianId', data.clinician.id);
+          login('clinician', data.clinician.id);
         }
 
         navigate('/dashboard');

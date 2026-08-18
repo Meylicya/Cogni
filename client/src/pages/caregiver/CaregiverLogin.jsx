@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 /**
  * CaregiverLogin — caregivers can't self-register (see
@@ -9,12 +10,14 @@ import BackButton from '../../components/BackButton.jsx';
  * (not yet built — CaregiverAccessGrant.jsx currently mocks the grant
  * with setTimeout and sends no real email).
  *
- * ENDPOINT (verify against server/routes — not yet confirmed):
+ * ENDPOINT (verified against server/routes/caregivers.js):
  *   POST /api/caregivers/login   body: { email, password }
- *   expected response: { caregiver: { id, ... } }
+ *   response: { caregiver: { id, name, email } }
+ *   403 if invite was never completed.
  */
 export default function CaregiverLogin() {
   const navigate = useNavigate();
+  const { login } = useSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -33,8 +36,9 @@ export default function CaregiverLogin() {
       if (response.ok) {
         const data = await response.json();
 
+        // Route through SessionContext (see patient Login.jsx for why).
         if (data.caregiver && data.caregiver.id) {
-          localStorage.setItem('caregiverId', data.caregiver.id);
+          login('caregiver', data.caregiver.id);
         }
 
         navigate('/dashboard');

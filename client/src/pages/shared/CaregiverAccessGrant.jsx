@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
 
 export default function CaregiverAccessGrant() {
+  const { clinicianId } = useSession();
   const [patients, setPatients] = useState([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [caregiverName, setCaregiverName] = useState('');
@@ -11,7 +13,6 @@ export default function CaregiverAccessGrant() {
 
   // Fetch the clinician's active patients to populate the dropdown
   useEffect(() => {
-    const clinicianId = localStorage.getItem('clinicianId');
     if (!clinicianId) return;
 
     const fetchPatients = async () => {
@@ -28,7 +29,7 @@ export default function CaregiverAccessGrant() {
     };
 
     fetchPatients();
-  }, []);
+  }, [clinicianId]);
 
   const handleGrantAccess = (e) => {
     e.preventDefault();

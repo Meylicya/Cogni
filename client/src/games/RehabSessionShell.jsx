@@ -1,32 +1,41 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import BackButton, { backButtonStyle } from '../components/BackButton.jsx'
 import NBackGame from './nback/NBackGame'
 import ReactionAttentionGame from './reactionAttention/ReactionAttentionGame'
 import SequenceRecallGame from './sequencerecall/SequenceRecallGame'
 import SpeechWordFindingGame from './speechWordFinding/SpeechWordFindingGame'
 import { syncGameEvent } from '../sync/syncLayer'
+import { useSession } from '../context/SessionContext.jsx'
+import { useSessionEngine } from '../context/SessionEngineContext.jsx'
 
 /**
  * RehabSessionShell — the picker/hub screen that ties Person 1's three
  * (soon four) exercises together into one flow: pick a game, play a
  * round, land on a summary, go again or pick something else.
  *
- * WHAT THIS IS STANDING IN FOR (until other pieces of the app exist):
- * - `difficulty` here is a local, hardcoded-default piece of state the
- *   patient can nudge manually. In the real app this comes from
- *   patients.difficulty_tier and gets adjusted by Person 2's ZPD engine —
- *   this shell's selector is just enough to demo different levels, not a
- *   replacement for that.
- * - `sessionLog` is a local in-memory array. In the real app, onGameEvent
- *   payloads get handed to Person 3's sync layer, which injects the
- *   authenticated patientId and persists to game_sessions/game_events.
- *   Keeping that boundary here (this shell never touches patientId) is
- *   deliberate, not an oversight — see eventSchema.js's patient-agnostic
- *   guard.
- * - `languageSymptomsFlagged` is hardcoded false. Person 4's intake flow
- *   is the real source for this signal, and isn't built yet. Once it
- *   exists, this becomes a prop threaded down from wherever patient
- *   session state lives, not a local constant.
+ * ADAPTIVE DIFFICULTY (Person 2):
+ * The "difficulty" tier shown here used to be a local hardcoded
+ * default the patient could nudge manually. It now comes from
+ * createSessionEngine(patientId), which materializes a SessionEngine
+ * holding a ZPDEngine + SymptomCheckinScorer + FrustrationEngine pair
+ * against the authenticated patient's actual tier (see
+ * ML/sessionBootstrap.js + ML/patientSessionContext.js). Every game
+ * event flows through sessionEngine.recordGameEvent() before being
+ * synced, so tier changes driven by accuracy/latency/error patterns
+ * show up live in the picker.
+ *
+ * OPTIONAL WEBCAM FOR FRUSTRATION GUARD:
+ * The biometric fatigue/HR/voice guards need a <video> element. We
+ * gate that behind an explicit consent button — without opt-in the
+ * ZPD engine still works, just without biometric safety-block signals
+ * (accuracy/latency/error-driven step adjustments continue normally).
+ * No raw video/audio ever leaves the device (see webCrypto.js + the
+ * Privacy Sandbox page for the network-telemetry proof).
+ *
+ * AUTH NOTE: SessionContext is still a dev stub — see its banner
+ * comment. When real auth lands, patientId + languageSymptomsFlagged
+ * should arrive from there. Until then, the bootstrap call will
+ * succeed against whatever dev-patient-1 resolves to.
  */
 
 const BASE_GAMES = [
@@ -63,37 +72,120 @@ const SPEECH_GAME = {
 
 /**
  * @param {Object} [props]
- * @param {boolean} [props.languageSymptomsFlagged=false] — from Person 4's
- *   intake flow (patients.language_symptoms_flagged). When true, the
- *   Speech & Word-Finding module appears in the game picker.
+ * @param {boolean} [props.languageSymptomsFlagged] — DEPRECATED pass-through.
+ *   Prefer reading from SessionContext; this prop remains for backward
+ *   compatibility with the original RehabSessionShell call site in App.jsx.
  */
-export default function RehabSessionShell({ languageSymptomsFlagged = false }) {
+export default function RehabSessionShell({ languageSymptomsFlagged: languageSymptomsFlaggedProp }) {
+  const session = useSession()
+  const patientId = session?.patientId
+  const { engine, engineReady, engineError, languageSymptomsFlagged: engineLanguageFlag } = useSessionEngine()
+
+  // Source of truth for the speech-game visibility flag is the server's
+  // session-context endpoint (Patient.languageSymptomsFlagged, set by
+  // the clinician's intake). The engine already fetched it during
+  // bootstrap. Fall back to the legacy prop so old call sites work.
+  const languageSymptomsFlagged = engineLanguageFlag ?? languageSymptomsFlaggedProp ?? false
+
   const games = useMemo(
     () => (languageSymptomsFlagged ? [...BASE_GAMES, SPEECH_GAME] : BASE_GAMES),
     [languageSymptomsFlagged]
   )
+
   const [activeGameId, setActiveGameId] = useState(null)
-  const [difficulty, setDifficulty] = useState(1)
   const [sessionLog, setSessionLog] = useState([]) // GameSessionEvent[], most recent first
   const [lastEvent, setLastEvent] = useState(null)
+  const [tier, setTier] = useState(1)
+  const [tierNote, setTierNote] = useState(null)
+  const [breakSuggested, setBreakSuggested] = useState(false)
+  const [monitorOn, setMonitorOn] = useState(false)
+  const [monitorError, setMonitorError] = useState(null)
 
-const handleGameEvent = useCallback((event) => {
-  setSessionLog((prev) => [event, ...prev])
-  setLastEvent(event)
+  const videoRef = useRef(null)
 
-  syncGameEvent(event).then((result) => {
-    if (!result.ok) {
-      // TODO: surface this more visibly once there's a UI spot for sync
-      // status (e.g. the Privacy Sandbox panel, or a small toast).
-      console.warn('Game session sync failed:', result.error)
+  // Wire engine callbacks whenever a new engine arrives. These are the
+  // only side-effects the shell cares about — tier/break signals
+  // surface here; everything else (game events, symptom check-ins) is
+  // pushed by other pages into the same engine via the context.
+  useEffect(() => {
+    if (!engine) return
+    setTier(engine.getCurrentTier())
+    engine.onDifficultyChange = (newTier, meta) => {
+      setTier(newTier)
+      setTierNote(meta?.reason ?? `Adjusted to level ${newTier}.`)
     }
-  })
-}, [])
+    engine.onBreakSuggested = () => {
+      setBreakSuggested(true)
+    }
+    // Note: we deliberately don't clear `tierNote` when engine swaps —
+    // a brief "why this changed" note is helpful across bootstraps.
+    return () => {
+      // The provider owns disposal; just clear our local callbacks so
+      // a stale closure doesn't fire into the next mount's setters.
+      engine.onDifficultyChange = null
+      engine.onBreakSuggested = null
+    }
+  }, [engine])
+
+  const handleGameEvent = useCallback((event) => {
+    setSessionLog((prev) => [event, ...prev])
+    setLastEvent(event)
+
+    // Hand the event to the ZPD engine first — it runs entirely
+    // on-device, so this stays synchronous-ish even when sync is slow.
+    // Failure here should not block the wire-side sync.
+    try {
+      engine?.recordGameEvent(event)
+    } catch (err) {
+      console.warn('ZPD engine rejected event:', err)
+    }
+
+    syncGameEvent(event).then((result) => {
+      if (!result.ok) {
+        console.warn('Game session sync failed:', result.error)
+      }
+    })
+  }, [engine])
+
   const activeGame = games.find((g) => g.id === activeGameId) ?? null
 
   function handleBackToGames() {
     setActiveGameId(null)
     setLastEvent(null)
+  }
+
+  async function handleEnableMonitoring() {
+    setMonitorError(null)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      const video = videoRef.current
+      if (!video) {
+        stream.getTracks().forEach((t) => t.stop())
+        setMonitorError('Camera tile not ready.')
+        return
+      }
+      video.srcObject = stream
+      await video.play().catch(() => {})
+      if (!engine) {
+        setMonitorError('Session not ready yet.')
+        return
+      }
+      await engine.startMonitoring(video)
+      setMonitorOn(true)
+    } catch (err) {
+      console.warn('Monitoring opt-in failed:', err)
+      setMonitorError(err.message || 'Could not access camera.')
+    }
+  }
+
+  function handleDisableMonitoring() {
+    engine?.stopMonitoring()
+    const video = videoRef.current
+    if (video?.srcObject) {
+      video.srcObject.getTracks().forEach((t) => t.stop())
+      video.srcObject = null
+    }
+    setMonitorOn(false)
   }
 
   return (
@@ -109,10 +201,31 @@ const handleGameEvent = useCallback((event) => {
       <header style={styles.pageHeader}>
         <span style={styles.eyebrow}>Today's session</span>
         <h1 style={styles.pageHeading}>Recovery, one step at a time.</h1>
-        <DifficultyPicker difficulty={difficulty} onChange={setDifficulty} />
+        <DifficultyPicker tier={tier} />
         <p style={styles.difficultyNote}>
-          Manual for now — this stands in for the adaptive engine (Pillar B) until it's wired in.
+          Level adjusts automatically based on your last rounds
+          {monitorOn ? ' and your fatigue/heart-rate signals.' : '.'}
+          {' '}
+          <MonitorControl
+            monitorOn={monitorOn}
+            monitorError={monitorError}
+            onEnable={handleEnableMonitoring}
+            onDisable={handleDisableMonitoring}
+          />
         </p>
+        {tierNote && (
+          <p style={styles.tierNote}>
+            {tierNote}{' '}
+            <button type="button" onClick={() => setTierNote(null)} style={styles.dismissNote}>
+              dismiss
+            </button>
+          </p>
+        )}
+        {engineError && (
+          <p style={styles.errorNote}>
+            Couldn't load your adaptive settings: {engineError}. Difficulty is locked at level 1.
+          </p>
+        )}
       </header>
 
       {!activeGame && (
@@ -123,6 +236,11 @@ const handleGameEvent = useCallback((event) => {
             ))}
           </div>
 
+          {/* Hidden video element — exists once monitoring is enabled. Lives
+              off-screen so it's not a distraction; the WebRTC stream never
+              leaves the browser. */}
+          <video ref={videoRef} style={styles.hiddenVideo} playsInline muted />
+
           {sessionLog.length > 0 && <SessionHistory sessionLog={sessionLog} games={games} />}
         </>
       )}
@@ -132,13 +250,23 @@ const handleGameEvent = useCallback((event) => {
           <BackButton onClick={handleBackToGames} style={styles.backLink}>
             ← Back to games
           </BackButton>
-          <activeGame.Component difficulty={difficulty} onGameEvent={handleGameEvent} />
+          <activeGame.Component difficulty={tier} onGameEvent={handleGameEvent} />
           {lastEvent && lastEvent.gameId === activeGame.id && (
             <p style={styles.roundNote}>
               Last round: {Math.round(lastEvent.accuracy * 100)}% accuracy — logged locally, not yet synced.
             </p>
           )}
         </div>
+      )}
+
+      {breakSuggested && (
+        <BreakModal
+          onResume={() => setBreakSuggested(false)}
+          onDisable={() => {
+            handleDisableMonitoring()
+            setBreakSuggested(false)
+          }}
+        />
       )}
     </div>
   )
@@ -162,24 +290,68 @@ function GameCard({ game, onSelect, disabled }) {
   )
 }
 
-function DifficultyPicker({ difficulty, onChange }) {
+function DifficultyPicker({ tier }) {
   return (
     <div style={styles.difficultyRow}>
       <span style={styles.difficultyLabel}>Level</span>
       {[1, 2, 3, 4, 5].map((level) => (
         <button
           key={level}
-          onClick={() => onChange(level)}
+          disabled
+          aria-pressed={level === tier}
           style={{
             ...styles.difficultyDot,
-            background: level === difficulty ? 'var(--harbor-orange)' : '#fff',
-            color: level === difficulty ? '#fff' : 'var(--harbor-navy)',
-            borderColor: level === difficulty ? 'var(--harbor-orange)' : '#D9E1E6',
+            background: level === tier ? 'var(--harbor-orange)' : '#fff',
+            color: level === tier ? '#fff' : 'var(--harbor-navy)',
+            borderColor: level === tier ? 'var(--harbor-orange)' : '#D9E1E6',
+            cursor: 'default',
+            opacity: level <= tier ? 1 : 0.5,
           }}
         >
           {level}
         </button>
       ))}
+    </div>
+  )
+}
+
+function MonitorControl({ monitorOn, monitorError, onEnable, onDisable }) {
+  if (monitorOn) {
+    return (
+      <button type="button" onClick={onDisable} style={styles.monitorLink}>
+        Turn camera off
+      </button>
+    )
+  }
+  return (
+    <>
+      <button type="button" onClick={onEnable} style={styles.monitorLink}>
+        Turn camera on to enable fatigue guard
+      </button>
+      {monitorError && <span style={styles.monitorError}> · {monitorError}</span>}
+    </>
+  )
+}
+
+function BreakModal({ onResume, onDisable }) {
+  return (
+    <div style={styles.modalBackdrop} role="dialog" aria-modal="true">
+      <div style={styles.modalCard}>
+        <h3 style={styles.modalHeading}>Time for a breather?</h3>
+        <p style={styles.modalBody}>
+          The fatigue guard noticed a few signals worth pausing on. A short
+          break — a glass of water, a few slow breaths — usually helps more
+          than pushing through.
+        </p>
+        <div style={styles.modalActions}>
+          <button type="button" onClick={onResume} style={styles.modalPrimary}>
+            Take a break
+          </button>
+          <button type="button" onClick={onDisable} style={styles.modalSecondary}>
+            Turn camera off and keep going
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -287,7 +459,6 @@ const styles = {
     fontSize: 13,
     fontWeight: 600,
     fontFamily: "'Work Sans', sans-serif",
-    cursor: 'pointer',
     transition: 'background 0.15s ease, border-color 0.15s ease',
   },
   cardGrid: {
@@ -344,6 +515,125 @@ const styles = {
     fontSize: 12,
     color: '#7C8B93',
   },
+  difficultyNote: {
+    fontSize: 12,
+    color: '#7C8B93',
+    fontStyle: 'italic',
+    marginTop: 10,
+    marginBottom: 0,
+  },
+  tierNote: {
+    marginTop: 8,
+    fontSize: 13,
+    color: 'var(--harbor-navy)',
+    background: '#fff',
+    border: '1px solid var(--harbor-orange)',
+    borderRadius: 8,
+    padding: '6px 10px',
+    display: 'inline-block',
+  },
+  dismissNote: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--harbor-teal)',
+    fontSize: 12,
+    cursor: 'pointer',
+    padding: 0,
+    marginLeft: 4,
+    textDecoration: 'underline',
+  },
+  errorNote: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#8B3A3A',
+    background: '#FFF5F5',
+    border: '1px solid #E8C5C5',
+    borderRadius: 8,
+    padding: '6px 10px',
+    display: 'inline-block',
+  },
+  monitorLink: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--harbor-teal)',
+    fontSize: 12,
+    fontStyle: 'italic',
+    cursor: 'pointer',
+    padding: 0,
+    marginLeft: 4,
+    textDecoration: 'underline',
+    fontFamily: "'Work Sans', sans-serif",
+  },
+  monitorError: {
+    fontSize: 12,
+    color: '#8B3A3A',
+    fontStyle: 'italic',
+  },
+  hiddenVideo: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    pointerEvents: 'none',
+    left: -9999,
+  },
+  modalBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(30, 58, 76, 0.45)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+    padding: '1rem',
+  },
+  modalCard: {
+    background: '#fff',
+    borderRadius: 14,
+    padding: '1.75rem 1.5rem',
+    maxWidth: 420,
+    width: '100%',
+    boxShadow: '0 20px 60px rgba(30, 58, 76, 0.25)',
+  },
+  modalHeading: {
+    fontFamily: "'Newsreader', serif",
+    fontSize: 22,
+    color: 'var(--harbor-navy)',
+    margin: '0 0 10px',
+  },
+  modalBody: {
+    fontSize: 14,
+    color: '#4A5A64',
+    lineHeight: 1.5,
+    margin: '0 0 18px',
+  },
+  modalActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  modalPrimary: {
+    background: 'var(--harbor-orange)',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 14,
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Work Sans', sans-serif",
+  },
+  modalSecondary: {
+    background: 'none',
+    color: 'var(--harbor-teal)',
+    border: 'none',
+    borderRadius: 8,
+    padding: '8px 14px',
+    fontSize: 13,
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    fontFamily: "'Work Sans', sans-serif",
+  },
   historyBlock: {
     maxWidth: 720,
     margin: '2rem auto 0',
@@ -358,13 +648,6 @@ const styles = {
     fontWeight: 600,
     color: 'var(--harbor-navy)',
     margin: '0 0 10px',
-  },
-  difficultyNote: {
-    fontSize: 12,
-    color: '#7C8B93',
-    fontStyle: 'italic',
-    marginTop: 10,
-    marginBottom: 0,
   },
   summaryChipRow: {
     display: 'flex',

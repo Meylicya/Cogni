@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
+import { useSession } from '../../context/SessionContext.jsx';
+import { useSessionEngine } from '../../context/SessionEngineContext.jsx';
 
 /**
  * DailySymptomCheckin — patient-facing, filled out once per day.
  *
  * NOT the same as IntakeForm.jsx (clinician-only, one-time, sets starting
  * difficulty tier). This is the ongoing daily signal into Person 2's ZPD
- * engine + dashboard trend lines. Still scoped to Person 2/4 originally —
- * loop them in before merging.
+ * engine + dashboard trend lines.
+ *
+ * Auth: patientId comes from SessionContext (PatientLogin writes it via
+ * the context's login()). languageSymptomsFlagged comes from the engine
+ * — the server's /api/patients/:id/session-context endpoint already
+ * projects this for the engine, so we don't need a separate fetch.
  *
  * ENDPOINTS (confirmed against server/routes/symptomCheckins.js):
  *   POST /api/symptom-checkins
@@ -24,6 +30,8 @@ import BackButton from '../../components/BackButton.jsx';
  */
 export default function DailySymptomCheckin() {
   const navigate = useNavigate();
+  const { patientId, loading: sessionLoading } = useSession();
+  const { engine, engineReady, engineError, languageSymptomsFlagged } = useSessionEngine();
 
   const [cognitive, setCognitive] = useState(0);
   const [physical, setPhysical] = useState(0);
@@ -31,7 +39,6 @@ export default function DailySymptomCheckin() {
   const [sleep, setSleep] = useState(0);
   const [communication, setCommunication] = useState(0);
 
-  const [languageSymptomsFlagged, setLanguageSymptomsFlagged] = useState(false);
   const [alreadySubmittedToday, setAlreadySubmittedToday] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,10 +48,10 @@ export default function DailySymptomCheckin() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
-    const patientId = localStorage.getItem('patientId');
-    // TODO(Person 4 / auth): read from SessionContext once real patient
-    // auth + intake data is wired up, not a raw localStorage flag.
-    setLanguageSymptomsFlagged(localStorage.getItem('languageSymptomsFlagged') === 'true');
+    // Wait for the session context to resolve (localStorage read is
+    // synchronous but the provider still mounts with loading=true on the
+    // first render so the rest of the tree doesn't re-render mid-mount).
+    if (sessionLoading) return;
 
     if (!patientId) {
       navigate('/patient/login');
@@ -71,14 +78,13 @@ export default function DailySymptomCheckin() {
     };
 
     checkTodaysStatus();
-  }, [navigate, todayStr]);
+  }, [patientId, sessionLoading, navigate, todayStr]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatusMessage('Saving...');
 
-    const patientId = localStorage.getItem('patientId');
     const payload = {
       patientId,
       cognitiveScore: Number(cognitive),
@@ -97,6 +103,20 @@ export default function DailySymptomCheckin() {
       });
 
       if (res.ok) {
+        // Feed today's severity into the on-device ZPD engine so it can
+        // block step-ups (per zpdEngine.js's safety logic) for the rest of
+        // this session. We already POSTed ourselves for the UX (we want
+        // to surface 409 / already-submitted states), so we just call
+        // recordSymptomCheckin on the response.
+        if (engineReady && engine) {
+          try {
+            const saved = await res.json();
+            const { patientId: _pid, ...scoreFields } = saved;
+            engine.recordSymptomCheckin(scoreFields);
+          } catch (err) {
+            console.warn('Could not score check-in into engine:', err);
+          }
+        }
         setSubmitted(true);
       } else if (res.status === 409) {
         setAlreadySubmittedToday(true);
