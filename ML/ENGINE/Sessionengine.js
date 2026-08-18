@@ -1,4 +1,4 @@
-import { getPatientSessionContext } from './patientSessionContext.js';
+import { getPatientSessionContext } from '../patientSessionContext.js';
 import { ZPDEngine } from './zpdEngine.js';
 import { SymptomCheckinScorer } from './scorer.js';
 import { FrustrationEngine } from './engine.js';
