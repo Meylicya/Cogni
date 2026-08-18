@@ -3,28 +3,7 @@ import crypto from 'crypto';
 import Patient from '../models/Patient.js';
 import { sendPatientInviteEmail } from '../utils/mailer.js';
 
-// 4. MINIMAL SESSION CONTEXT — read by Person 2's sessionBootstrap so the
-// on-device ZPD engine can be instantiated against the patient's current
-// tier without exposing any other personal/health data over the wire.
-// Returns ONLY the two fields the engine needs; no name/email/dob/etc.
-// TODO(Person 4 / auth): gate this behind the authenticated patient's
-// own session — currently anyone with a patientId can fetch the tier.
-router.get('/:id/session-context', async (req, res) => {
-  try {
-    const patient = await Patient.findById(req.params.id, 'difficultyTier languageSymptomsFlagged');
-    if (!patient) {
-      return res.status(404).json({ message: 'Patient not found' });
-    }
-    res.json({
-      difficultyTier: patient.difficultyTier,
-      languageSymptomsFlagged: patient.languageSymptomsFlagged,
-    });
-  } catch (error) {
-    console.error('Session Context Error:', error);
-    res.status(500).json({ message: 'Internal server error fetching session context.' });
-  }
-});
-
+// router inizialization before its usage 
 const router = express.Router();
 
 // 1. ENDPOINT TO SEND THE INVITE (Triggered by Clinician)
@@ -81,7 +60,6 @@ router.post('/', async (req, res) => {
 });
 
 // 3. ENDPOINT TO LOG IN (returning patient, after accept-invite has set a password)
-// Same plaintext-comparison caveat as accept-invite above — not hashed yet.
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -93,7 +71,6 @@ router.post('/login', async (req, res) => {
     }
 
     if (patient.inviteToken) {
-      // Invite was never completed — shouldn't be able to log in yet.
       return res.status(403).json({ message: 'Please finish setting up your account first.' });
     }
 
@@ -103,6 +80,23 @@ router.post('/login', async (req, res) => {
   } catch (error) {
     console.error('Patient Login Error:', error);
     res.status(500).json({ message: 'Internal server error during login.' });
+  }
+});
+
+// 4. MINIMAL SESSION CONTEXT
+router.get('/:id/session-context', async (req, res) => {
+  try {
+    const patient = await Patient.findById(req.params.id, 'difficultyTier languageSymptomsFlagged');
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found' });
+    }
+    res.json({
+      difficultyTier: patient.difficultyTier,
+      languageSymptomsFlagged: patient.languageSymptomsFlagged,
+    });
+  } catch (error) {
+    console.error('Session Context Error:', error);
+    res.status(500).json({ message: 'Internal server error fetching session context.' });
   }
 });
 
