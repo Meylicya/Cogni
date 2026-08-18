@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useSession } from './SessionContext.jsx'
-import { createSessionEngine } from '../../ML/ENGINE/Sessionengine.js'
+import { createSessionEngine } from '../../../ML/ENGINE/Sessionengine.js'
 
 /**
  * SessionEngineContext — exposes the on-device SessionEngine (ZPD +
