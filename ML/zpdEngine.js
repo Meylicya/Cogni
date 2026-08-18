@@ -1,4 +1,4 @@
-import { validateGameSessionEvent } from './eventSchema.js';
+import { validateGameSessionEvent } from '../shared/eventSchema.js';
 import { MIN_DIFFICULTY, MAX_DIFFICULTY } from './difficultyConfig.js';
 
 export class ZPDEngine {
