@@ -1,9 +1,11 @@
-import 'dotenv/config'; // <-- THIS MUST BE LINE 1! It loads passwords immediately.
+import dotenv from 'dotenv';
+import path from 'path';
 import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import apiRoutes from './routes/index.js';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const app = express();
 
