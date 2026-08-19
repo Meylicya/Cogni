@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import BackButton from '../../components/BackButton.jsx';
 import { useSession } from '../../context/SessionContext.jsx';
+import { getAuthHeaders } from '../../sync/authHeaders.js';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -22,12 +23,18 @@ export default function Dashboard() {
 
     const fetchDashboardData = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/patients');
+        // /clinicians/:id/patients is gated by server/middleware/requireAuth.js
+        // with resource='clinician-roster' — it returns only THIS clinician's
+        // roster, so we no longer need the client-side filter that the old
+        // /api/patients leak-and-filter approach used. The legacy
+        // /api/patients route is being deleted; this is its replacement.
+        const response = await fetch(`http://localhost:3001/api/clinicians/${clinicianId}/patients`, {
+          headers: { ...getAuthHeaders() },
+        });
 
         if (!response.ok) throw new Error('Failed to fetch patient data');
 
-        const allPatients = await response.json();
-        const myPatients = allPatients.filter(p => p.clinicianId === clinicianId);
+        const myPatients = await response.json();
 
         // HACKATHON FIX: Silently set the newest patient as the "Active Player"
         if (myPatients.length > 0) {

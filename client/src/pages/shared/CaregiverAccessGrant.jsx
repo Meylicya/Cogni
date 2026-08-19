@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import BackButton from '../../components/BackButton.jsx';
 import { useSession } from '../../context/SessionContext.jsx';
+import { getAuthHeaders } from '../../sync/authHeaders.js';
 
 export default function CaregiverAccessGrant() {
   const { clinicianId } = useSession();
@@ -11,16 +12,26 @@ export default function CaregiverAccessGrant() {
   const [statusMessage, setStatusMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // Fetch the clinician's active patients to populate the dropdown
+  // Fetch the clinician's active patients to populate the dropdown.
+  //
+  // The /clinicians/:id/patients route is gated by
+  // server/middleware/requireAuth.js with resource='clinician-roster' —
+  // it requires X-User-Id === :id AND X-User-Role === 'clinician'. We
+  // attach those headers via getAuthHeaders() (reads from the same
+  // localStorage keys SessionContext writes on login). Note this page
+  // used to hit /api/patients and filter client-side, which (a) leaked
+  // every patient across clinicians and (b) bypassed the auth gate
+  // entirely; the clinician-roster endpoint is both safer and cheaper.
   useEffect(() => {
     if (!clinicianId) return;
 
     const fetchPatients = async () => {
       try {
-        const response = await fetch('http://localhost:3001/api/patients');
+        const response = await fetch(`http://localhost:3001/api/clinicians/${clinicianId}/patients`, {
+          headers: { ...getAuthHeaders() },
+        });
         if (response.ok) {
-          const allPatients = await response.json();
-          const myPatients = allPatients.filter(p => p.clinicianId === clinicianId);
+          const myPatients = await response.json();
           setPatients(myPatients);
         }
       } catch (err) {

@@ -14,12 +14,13 @@
  * projects the query to those same two fields so a server-side bug
  * can't accidentally leak the rest of the patient document.
  *
- * Auth: Person 4's real auth flow still isn't wired up. For now, the
- * caller is responsible for passing in a patientId it has reason to
- * believe corresponds to the currently-active session (e.g. from
- * SessionContext). The TODO on the server route flags adding an
- * auth middleware before this leaves hackathon scope.
+ * Auth: server/middleware/requireAuth.js gates this route on
+ * X-User-Id + X-User-Role headers. We attach them via authHeaders.js,
+ * which reads from the same localStorage keys SessionContext writes —
+ * so the active session from the login page is what the server sees.
  */
+
+import { getAuthHeaders } from './authHeaders.js'
 
 const API_BASE = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL)
   || (typeof process !== 'undefined' && process.env?.API_BASE_URL)
@@ -41,7 +42,10 @@ async function getPatientSessionContext(patientId) {
 
   const res = await fetch(`${API_BASE}/api/patients/${encodeURIComponent(patientId)}/session-context`, {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
   });
 
   if (!res.ok) {

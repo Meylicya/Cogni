@@ -1,9 +1,26 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import BackButton from '../../components/BackButton.jsx';
 import { useSession } from '../../context/SessionContext.jsx';
 
+/**
+ * PatientInvite — clinician sends a magic-link invite to a new patient.
+ *
+ * The intake form (IntakeForm.jsx) computes a starting difficultyTier and
+ * languageSymptomsFlagged BEFORE the patient exists in the DB. Those values
+ * flow into this page via useLocation().state (see IntakeForm's
+ * handleContinueToInvite). When the invite POST succeeds, the server's
+ * /api/patients/invite route stamps them onto the new Patient record so
+ * the patient's first /session-context fetch already reflects the
+ * clinician's assessment instead of defaulting to tier 1 / no language
+ * flag. Missing state (clinician navigated here directly without doing
+ * the intake first) is treated the same as before — server defaults
+ * kick in and the clinician can re-run intake later.
+ */
 export default function PatientInvite() {
   const { clinicianId } = useSession();
+  const location = useLocation();
+  const intakePrefill = location.state ?? {};
   const [patientName, setPatientName] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
@@ -42,6 +59,12 @@ export default function PatientInvite() {
       name: patientName,
       email: patientEmail,
       clinicianId,
+      // Optional pre-fill from IntakeForm via useNavigate({ state }).
+      // Server applies these to the new Patient record on creation so
+      // the session-context endpoint doesn't have to default to tier 1
+      // + no-language-flag for the freshly-invited patient.
+      difficultyTier: intakePrefill.difficultyTier,
+      languageSymptomsFlagged: intakePrefill.languageSymptomsFlagged,
     };
 
     try {

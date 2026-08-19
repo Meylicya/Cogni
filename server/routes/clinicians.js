@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { Clinician, Patient } from '../models/index.js'
+import { requireAuth } from '../middleware/requireAuth.js'
 
 const router = Router()
 
@@ -52,10 +53,11 @@ router.get('/:id', async (req, res) => {
   }
 })
 
-// GET /api/clinicians/:id/patients — a clinician's patient roster
-router.get('/:id/patients', async (req, res) => {
+// GET /api/clinicians/:id/patients — a clinician's patient roster.
+// requireAuth enforces that X-User-Id === :id AND X-User-Role === 'clinician'
+// (see middleware/requireAuth.js).
+router.get('/:id/patients', requireAuth({ resource: 'clinician-roster' }), async (req, res) => {
   try {
-    // TODO: auth middleware — only the clinician themselves should hit this
     const patients = await Patient.find({ clinicianId: req.params.id })
     res.json(patients)
   } catch (err) {

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import crypto from 'crypto'
 import { Caregiver, CaregiverPatientLink } from '../models/index.js'
 import { sendCaregiverInviteEmail } from '../utils/mailer.js'
+import { requireAuth } from '../middleware/requireAuth.js'
 
 const router = Router()
 
@@ -98,10 +99,11 @@ router.post('/login', async (req, res) => {
 })
 
 // GET /api/caregivers/:id/patients — the "switcher view":
-// list every patient this caregiver is linked to
-router.get('/:id/patients', async (req, res) => {
+// list every patient this caregiver is linked to.
+// requireAuth enforces that X-User-Id === :id AND X-User-Role === 'caregiver'
+// (see middleware/requireAuth.js).
+router.get('/:id/patients', requireAuth({ resource: 'caregiver-roster' }), async (req, res) => {
   try {
-    // TODO: auth middleware — caregivers should only ever see their own links
     const links = await CaregiverPatientLink.find({ caregiverId: req.params.id }).populate(
       'patientId',
       '-authCredentialHash -inviteToken'

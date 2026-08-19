@@ -2,28 +2,51 @@ import express from 'express';
 import crypto from 'crypto';
 import Patient from '../models/Patient.js';
 import { sendPatientInviteEmail } from '../utils/mailer.js';
+import { requireAuth } from '../middleware/requireAuth.js';
 
 // router inizialization before its usage 
 const router = express.Router();
 
 // 1. ENDPOINT TO SEND THE INVITE (Triggered by Clinician)
+//
+// IntakeForm.jsx computes a starting difficultyTier and languageSymptomsFlagged
+// BEFORE the patient exists. The clinician's PatientInvite form forwards
+// them as optional fields here; if present, we stamp them onto the new
+// Patient record on creation so the patient's first /session-context
+// fetch already reflects the clinician's assessment. Missing fields are
+// fine — the Patient schema's defaults (tier 1, languageSymptomsFlagged
+// false) kick in. This is the seam that closes the bug where intake
+// values were computed, console.log'd, and silently dropped.
 router.post('/invite', async (req, res) => {
   try {
-    const { email, name, clinicianId } = req.body;
+    const { email, name, clinicianId, difficultyTier, languageSymptomsFlagged } = req.body;
 
     const inviteToken = crypto.randomBytes(16).toString('hex');
 
-    const newPatient = new Patient({
+    const patientFields = {
       email,
       name: name || 'Pending Patient',
       clinicianId,
-      inviteToken
-    });
-    
+      inviteToken,
+    };
+
+    // Only override the schema defaults when the client actually sent a
+    // value — avoids accidental write of `undefined` over a meaningful
+    // existing field if this route ever gets reused to update existing
+    // records (it doesn't today, but defensive).
+    if (Number.isInteger(difficultyTier) && difficultyTier >= 1 && difficultyTier <= 5) {
+      patientFields.difficultyTier = difficultyTier;
+    }
+    if (typeof languageSymptomsFlagged === 'boolean') {
+      patientFields.languageSymptomsFlagged = languageSymptomsFlagged;
+    }
+
+    const newPatient = new Patient(patientFields);
+
     await newPatient.save();
 
     const emailSent = await sendPatientInviteEmail(email, name, inviteToken);
-    
+
     if (!emailSent) {
       return res.status(500).json({ message: 'Patient saved, but email failed to send.' });
     }
@@ -84,7 +107,12 @@ router.post('/login', async (req, res) => {
 });
 
 // 4. MINIMAL SESSION CONTEXT
-router.get('/:id/session-context', async (req, res) => {
+//
+// requireAuth allows the patient themselves, the owning clinician, or any
+// caregiver linked to this patient. See middleware/requireAuth.js for the
+// rule table. Without this gate the ZPD-tier signal leaks to anyone who
+// can guess/observe a patientId — see CLAUDE.md privacy boundary notes.
+router.get('/:id/session-context', requireAuth({ resource: 'patient-resource' }), async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id, 'difficultyTier languageSymptomsFlagged');
     if (!patient) {
