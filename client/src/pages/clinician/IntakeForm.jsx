@@ -34,12 +34,6 @@ export default function IntakeForm() {
       const totalSymptoms = parseInt(cognitive) + parseInt(physical) + parseInt(emotional) + parseInt(sleep);
       const startingTier = calculateDifficultyTier(totalSymptoms);
 
-      console.log("Intake Complete:", {
-        languageSymptomsFlagged: languageDifficulty,
-        difficulty_tier: startingTier,
-        symptom_scores: { cognitive, physical, emotional, sleep },
-      });
-
       setResult({ message: gateResult.message, isSafe: true, assignedTier: startingTier });
     } else {
       setResult({ message: gateResult.message, isSafe: false, assignedTier: null });

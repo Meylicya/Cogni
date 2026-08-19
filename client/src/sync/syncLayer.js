@@ -14,14 +14,16 @@
  * real auth lands, this becomes "read the active session from the
  * SessionContext cache" — no other change needed here.
  *
- * Encryption: client-side AES-GCM via webCrypto.js — only the actual
- * score payload (accuracy / latency / errorType) is encrypted, the
- * metadata (gameId, difficultyLevel, completedAt) stays plain so the
- * dashboard can filter/sort without decrypting every row.
+ * Privacy boundary: clinical scores sync as plaintext PHI behind the
+ * server's RBAC gate (GET /api/game-sessions/patient/:id is gated by
+ * requireAuth({ resource: 'patient-scores' })). Biometric / sensor data
+ * (webcam, PPG, audio) stays on-device and is not synced here — see
+ * client/src/pages/shared/PrivacySandbox.jsx for the network-telemetry
+ * proof panel.
  */
 
 import { validateGameSessionEvent } from '../../../shared/eventSchema.js'
-import { getOrCreatePatientKey, encryptScores } from './webCrypto.js'
+import { getAuthHeaders } from './authHeaders.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
 
@@ -64,28 +66,26 @@ export async function syncGameEvent(event) {
     }
   }
 
-  // Only the actual scores get encrypted — gameId/difficultyLevel/completedAt
-  // stay as plain metadata so the dashboard can filter/sort without needing
-  // to decrypt every row first.
-  const key = await getOrCreatePatientKey(patientId)
-  const encryptedScores = await encryptScores(key, {
-    accuracy: event.accuracy,
-    avgLatencyMs: event.responseLatencyMs,
-    errorType: event.errorType,
-  })
-
   const payload = {
     patientId,
     gameId: event.gameId,
     difficultyLevel: event.difficultyLevel,
     completedAt: event.timestamp,
-    encryptedScores, // { ciphertext, iv } — this is literally all the network sees
+    accuracy: event.accuracy,
+    avgLatencyMs: event.responseLatencyMs,
+    errorType: event.errorType,
   }
 
   try {
     const res = await fetch(`${API_BASE}/api/game-sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // Attach X-User-* headers so the server has role context for any
+        // future middleware that cross-checks body patientId against the
+        // authenticated session (see routes/gameSessions.js TODO).
+        ...getAuthHeaders(),
+      },
       body: JSON.stringify(payload),
     })
 

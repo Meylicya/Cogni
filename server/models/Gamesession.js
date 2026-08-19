@@ -15,15 +15,25 @@ const gameSessionSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
-  // Client-side AES-GCM ciphertext of { accuracy, avgLatencyMs, errorType }.
-  // The server never sees these values in plaintext — decryption only
-  // happens client-side (patient app or, later, an authorized caregiver/
-  // clinician dashboard holding the matching key). See client/src/sync/
-  // webCrypto.js for the encrypt/decrypt implementation and its
-  // documented key-management limitations.
-  encryptedScores: {
-    ciphertext: { type: String, required: true },
-    iv: { type: String, required: true },
+  // Plaintext clinical scores by design — gated at the route layer by
+  // requireAuth({ resource: 'patient-scores' }). See server/routes/
+  // gameSessions.js. The privacy boundary for biometric / sensor data
+  // (webcam, PPG, audio) remains on-device; see client/src/pages/shared/
+  // PrivacySandbox.jsx for the network-telemetry proof panel.
+  accuracy: {
+    type: Number,
+    required: true,
+    min: 0,
+    max: 1,
+  },
+  avgLatencyMs: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  errorType: {
+    type: String,
+    required: true,
   },
   completedAt: {
     type: Date,

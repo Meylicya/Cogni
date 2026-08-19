@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { GameSession } from '../models/index.js'
+import { requireAuth } from '../middleware/requireAuth.js'
 
 const router = Router()
 
@@ -9,28 +10,56 @@ const router = Router()
 // patientId baked in, per eventSchema.js). The client-side sync layer is
 // responsible for:
 //   1. Injecting the authenticated patient's ID
-//   2. Encrypting the score payload client-side (Web Crypto / AES-GCM)
-//      before it ever hits this endpoint
-// This route just persists whatever arrives — it should NOT be doing the
-// patientId injection itself, that happens client-side per the design notes.
-// TODO: once auth exists, cross-check req.body.patientId against the
-// authenticated session instead of trusting the body outright.
+//   2. Attaching X-User-* headers via sync/authHeaders.js
+// Scores are plaintext by design — read access is gated on
+// GET /api/game-sessions/patient/:id by requireAuth. Biometric / sensor
+// data (webcam, PPG, audio) stays on-device and is not synced here.
+// TODO: once real auth lands, cross-check req.body.patientId against the
+// authenticated session (compare against X-User-Id when role === 'patient')
+// instead of trusting the body outright.
 router.post('/', async (req, res) => {
   try {
-    const { patientId, gameId, difficultyLevel, completedAt, encryptedScores } = req.body
+    const {
+      patientId,
+      gameId,
+      difficultyLevel,
+      completedAt,
+      accuracy,
+      avgLatencyMs,
+      errorType,
+    } = req.body
 
-    if (!encryptedScores || !encryptedScores.ciphertext || !encryptedScores.iv) {
-      return res.status(400).json({
-        error: 'encryptedScores.ciphertext and encryptedScores.iv are required — this endpoint no longer accepts plaintext scores',
-      })
+    // Inline range validation — fail with a clear 400 instead of letting
+    // mongoose cast errors leak. eventSchema.js already enforces these
+    // client-side, but the server must not trust the client to do it.
+    const errors = []
+    if (!patientId) errors.push('patientId is required')
+    if (!gameId) errors.push('gameId is required')
+    if (!Number.isInteger(difficultyLevel) || difficultyLevel < 1 || difficultyLevel > 5) {
+      errors.push('difficultyLevel must be an integer 1-5')
+    }
+    if (typeof accuracy !== 'number' || Number.isNaN(accuracy) || accuracy < 0 || accuracy > 1) {
+      errors.push('accuracy must be a number between 0 and 1')
+    }
+    if (typeof avgLatencyMs !== 'number' || Number.isNaN(avgLatencyMs) || avgLatencyMs < 0) {
+      errors.push('avgLatencyMs must be a non-negative number')
+    }
+    if (typeof errorType !== 'string' || errorType.length === 0) {
+      errors.push('errorType must be a non-empty string')
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ error: errors.join('; ') })
     }
 
     const session = await GameSession.create({
       patientId,
       gameId,
       difficultyLevel,
-      encryptedScores,
-      completedAt: completedAt || Date.now(),
+      accuracy,
+      avgLatencyMs,
+      errorType,
+      completedAt: completedAt ? new Date(completedAt) : Date.now(),
     })
     res.status(201).json(session)
   } catch (err) {
@@ -39,17 +68,22 @@ router.post('/', async (req, res) => {
 })
 
 // GET /api/game-sessions/patient/:patientId — dashboard trend data,
-// optionally filtered by gameId (?gameId=n-back)
-router.get('/patient/:patientId', async (req, res) => {
-  try {
-    const query = { patientId: req.params.patientId }
-    if (req.query.gameId) query.gameId = req.query.gameId
+// optionally filtered by gameId (?gameId=n-back). Gated by
+// requireAuth({ resource: 'patient-scores' }) so only the patient
+// themselves, their owning clinician, or a linked caregiver can read.
+// Sorted newest-first so the dashboard's "latest" pick is at index 0.
+router.get('/patient/:patientId',
+  requireAuth({ resource: 'patient-scores' }),
+  async (req, res) => {
+    try {
+      const query = { patientId: req.params.patientId }
+      if (req.query.gameId) query.gameId = req.query.gameId
 
-    const sessions = await GameSession.find(query).sort({ completedAt: 1 })
-    res.json(sessions)
-  } catch (err) {
-    res.status(400).json({ error: err.message })
-  }
-})
+      const sessions = await GameSession.find(query).sort({ completedAt: -1 })
+      res.json(sessions)
+    } catch (err) {
+      res.status(400).json({ error: err.message })
+    }
+  })
 
 export default router

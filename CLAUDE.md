@@ -53,8 +53,8 @@ Two files are **team-wide contracts**. Changes here require coordination across 
 - `pages/{clinician,patient,caregiver,shared}/` — onboarding, login, intake, dashboard, privacy sandbox, evidence page. Per recent commits, clinician/caregiver/patient login flows are wired up; intake is split off as its own page.
 - `games/RehabSessionShell.jsx` — the picker/hub that hosts all four games. **Note its current limitations**: it uses a hardcoded local difficulty level (stands in for `patient.difficultyTier`), `languageSymptomsFlagged` is a hardcoded prop, and `sessionLog` is local-only. These are deliberate stubs documented in the file's header — replace them when wiring up real session state from `context/SessionContext.jsx` and `ML/sessionBootstrap.js`.
 - `games/{nback,reactionattention,sequencerecall,speechWordFinding}/` — one folder per game, each with `*Engine.js` (pure logic), `*Game.jsx` (UI), and usually an `*.test.js`.
-- `sync/syncLayer.js` — **the boundary that attaches a patientId to events**. The only file allowed to cross that boundary. It calls `sync/webCrypto.js` to AES-GCM-encrypt the score payload before POSTing to `/api/game-sessions`.
-- `sync/webCrypto.js` — client-side AES-GCM (Web Crypto API). One 256-bit key per patient, stored in `localStorage` under `encKey:<patientId>`. **Known hackathon limitation**: keys in localStorage are not production-grade key custody — see the file's banner comment.
+- `sync/syncLayer.js` — **the boundary that attaches a patientId to events**. The only file allowed to cross that boundary. POSTs clinical scores as plaintext PHI to `/api/game-sessions` and attaches `X-User-*` headers via `sync/authHeaders.js`.
+- `sync/webCrypto.js` — reserved for future on-device biometric / sensor pipelines (webcam frames, PPG signals, raw audio). Those signals stay 100% in local RAM and never cross the network. Currently a stub — clinical score encryption was removed from this layer; scores are now plaintext PHI behind `requireAuth({ resource: 'patient-scores' })`.
 - `context/SessionContext.jsx` — currently a **dev stub** returning hardcoded IDs. This is the next swap-in target for real auth.
 - `components/` — small shared UI primitives (`BackButton`, `Modal`, `Toast`).
 
@@ -68,12 +68,12 @@ Pure JS, runs in the browser. Three top-level entry points and a `ENGINE/` subfo
 ### Server (`/server/`)
 - `index.js` — Express bootstrap. **`import 'dotenv/config'` MUST be line 1** (it's a banner comment in the file — keep it). Loads `MONGO_URI` from `.env`, mounts `routes/index.js` under `/api`, listens on 3001. Also defines two legacy routes inline (`POST /api/login`, `GET /api/patients`) for hackathon continuity — newer routes live in `routes/`.
 - `routes/index.js` — mounts `/clinicians`, `/patients`, `/intake-records`, `/symptom-checkins`, `/game-sessions`, `/game-events`, `/caregivers`, `/caregiver-links`.
-- `models/` — Mongoose schemas. `GameSession.encryptedScores` is `{ ciphertext, iv }` only — the server never sees plaintext scores, decryption happens client-side (patient app or an authorized dashboard holding the matching key).
+- `models/` — Mongoose schemas. `GameSession` stores plaintext `accuracy` / `avgLatencyMs` / `errorType` by design — read access is gated at the route layer by `requireAuth({ resource: 'patient-scores' })` so only the patient themselves, the owning clinician, or a linked caregiver can fetch a patient's historical scores.
 - `utils/mailer.js` — nodemailer wrapper. Note: `routes/caregivers.js` calls `sendCaregiverInviteEmail()` (referenced but commented-out import); this needs to be added to `mailer.js` to match the existing `sendPatientInviteEmail` shape.
 - `server/.env` — contains real credentials. **`.env` is gitignored**; the version present locally has the hackathon dev secrets and should never be committed (and never pasted into chat).
 
 ### Privacy boundary summary
-Game engines → `eventSchema.createGameSessionEvent()` (patient-agnostic) → game UI → `syncLayer.syncGameEvent()` → AES-GCM encrypt scores (`webCrypto.js`) → POST `/api/game-sessions` → server stores ciphertext only. Decryption happens on whichever client holds the per-patient key in localStorage.
+Game engines → `eventSchema.createGameSessionEvent()` (patient-agnostic) → game UI → `syncLayer.syncGameEvent()` → POST `/api/game-sessions` → server stores plaintext scores. Read access is gated by `requireAuth({ resource: 'patient-scores' })` so only the patient themselves, the owning clinician, or a linked caregiver can fetch a patient's historical scores. **Biometric / sensor data (webcam, PPG, audio) stays on-device** — see `client/src/pages/shared/PrivacySandbox.jsx` for the live network-telemetry proof panel.
 
 ## Repo-Specific Conventions
 - ESM everywhere (`"type": "module"` in all three package.jsons).

@@ -4,11 +4,12 @@ import BackButton from '../../components/BackButton.jsx';
 import { useSession } from '../../context/SessionContext.jsx';
 
 /**
- * CaregiverLogin — caregivers can't self-register (see
- * CaregiverAccessGrant.jsx), so there's no signup page here, only login.
- * A caregiver reaches a usable account via a clinician-granted invite
- * (not yet built — CaregiverAccessGrant.jsx currently mocks the grant
- * with setTimeout and sends no real email).
+ * CaregiverLogin — caregivers can't self-register (see the routed
+ * /clinician/caregiver-access page), so there's no signup page here,
+ * only login. A caregiver reaches a usable account via a
+ * clinician-granted invite: CaregiverAccessGrant issues a two-step
+ * invite (POST /api/caregivers/invite → POST /api/caregiver-links) and
+ * the caregiver sets their own password via the emailed magic link.
  *
  * ENDPOINT (verified against server/routes/caregivers.js):
  *   POST /api/caregivers/login   body: { email, password }
