@@ -2,7 +2,7 @@ import PrivacySandbox from './pages/shared/PrivacySandbox.jsx';
 import Dashboard from './pages/clinician/Dashboard.jsx';
 import Login from './pages/clinician/Login.jsx';
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { SessionProvider, useSession } from './context/SessionContext.jsx'
+import { SessionProvider } from './context/SessionContext.jsx'
 import { SessionEngineProvider } from './context/SessionEngineContext.jsx'
 import RequireAuth from './components/RequireAuth.jsx'
 import LandingPage from './pages/LandingPage.jsx'
@@ -19,14 +19,12 @@ import CaregiverAcceptInvite from './pages/caregiver/CaregiverAcceptInvite.jsx'
 import RehabSessionShell from './games/RehabSessionShell.jsx'
 
 /**
- * GamesRoute — thin wrapper that hands the authenticated patientId to
- * RehabSessionShell. The shell itself reads it from SessionContext
- * (useSessionEngine bootstraps against it), so passing it as a prop is
- * kept for backward compatibility with old call sites.
+ * GamesRoute — thin wrapper for the /games route. RehabSessionShell
+ * reads the authenticated patient via useSession()/useSessionEngine()
+ * directly, so no props need to be passed down here.
  */
 function GamesRoute() {
-  const { patientId } = useSession()
-  return <RehabSessionShell patientId={patientId} />
+  return <RehabSessionShell />
 }
 
 function App() {
