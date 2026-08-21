@@ -10,6 +10,8 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@ricky0123/vad-web": "^0.0.30",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
     "react": "^18.3.1",

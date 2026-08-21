@@ -26,13 +26,19 @@ export class FrustrationEngine {
     this.onBreakSuggested = null;  
   }
 
-  async init(videoElement) {
+  async init(videoElement, { audioGranted = true } = {}) {
     this.videoElement = videoElement;
     await this.tracker.init();
-    
+
+    // Lazy-start the VAD: only consume the mic once audio permission has
+    // been granted. When the patient grants camera but denies mic, the
+    // voice-hesitation arm stays off and the privacy page's "mic arm is
+    // live" console log won't fire (see voiceMonitor.js).
     if (this.voiceMonitor) {
       await this.voiceMonitor.init();
-      this.voiceMonitor.start();
+      if (audioGranted) {
+        this.voiceMonitor.start();
+      }
     }
   }
 
@@ -52,6 +58,25 @@ export class FrustrationEngine {
   stop() {
     if (this._rafId !== null) cancelAnimationFrame(this._rafId);
     this._rafId = null;
+    // Release the mic when monitoring is toggled off, so the address-bar
+    // mic indicator actually goes off.
+    if (this.voiceMonitor?.isRunning) {
+      this.voiceMonitor.pause();
+    }
+  }
+
+  /**
+   * Symmetric API for flipping the voice arm on/off from outside
+   * (RehabSessionShell uses this when audio is granted after the fact).
+   * No-op when voice monitoring was disabled at construction time.
+   */
+  setVoiceMonitorActive(active) {
+    if (!this.voiceMonitor) return;
+    if (active && !this.voiceMonitor.isRunning) {
+      this.voiceMonitor.start();
+    } else if (!active && this.voiceMonitor.isRunning) {
+      this.voiceMonitor.pause();
+    }
   }
 
   dispose() {

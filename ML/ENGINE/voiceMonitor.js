@@ -13,9 +13,12 @@ export class VoiceStressMonitor {
 
     this._lastSpeechEndMs = null;
     this._pauses = []; // { t, durationMs }
+    this._firstNonNullLogged = false;
   }
 
   async init() {
+    // Reset the one-shot log flag so a fresh monitor after dispose() logs again.
+    this._firstNonNullLogged = false;
     this.vad = await MicVAD.new({
       onSpeechStart: () => {
         if (this._lastSpeechEndMs !== null) {
@@ -54,6 +57,19 @@ export class VoiceStressMonitor {
     if (this._pauses.length < 2) return null;
 
     const longPauseCount = this._pauses.filter(p => p.durationMs >= this.longPauseMs).length;
-    return longPauseCount / this._pauses.length;
+    const score = longPauseCount / this._pauses.length;
+
+    // One-shot confirmation that the mic arm is live and producing data.
+    // Fires once per monitor instance (the first time we get a usable
+    // score); the verification spec uses this to confirm audio permission
+    // was actually granted and the VAD is consuming the mic stream.
+    if (!this._firstNonNullLogged) {
+      this._firstNonNullLogged = true;
+      console.log(
+        `[VoiceStressMonitor] first non-null hesitation score: ${score.toFixed(3)} (mic arm is live)`
+      );
+    }
+
+    return score;
   }
 }
