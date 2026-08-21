@@ -184,6 +184,23 @@ export default function Dashboard() {
           <p style={{ color: '#5B8A9A', fontSize: 16, margin: 0 }}>
             Overview of your active cognitive rehabilitation patients.
           </p>
+          <button
+            type="button"
+            onClick={() => navigate('/privacy-sandbox')}
+            style={{
+              marginTop: 6,
+              padding: 0,
+              background: 'none',
+              border: 'none',
+              color: '#5B8A9A',
+              fontSize: 13,
+              fontFamily: "'Work Sans', sans-serif",
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            See how patient data is handled →
+          </button>
         </div>
 
         {/* HACKATHON UX FIX: Added a button group for all clinician actions! */}

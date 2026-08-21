@@ -43,13 +43,32 @@ export class SessionEngine {
   }
 
   
-  async startMonitoring(videoElement) {
-    await this.frustrationEngine.init(videoElement);
+  /**
+   * Boots the biometric guards against the supplied <video> element.
+   *
+   * @param {HTMLVideoElement} videoElement
+   * @param {Object} [opts]
+   * @param {boolean} [opts.audioGranted=false] — when false, the voice
+   *   hesitation guard stays parked (VAD model is still initialized so a
+   *   later re-grant is fast). The plan: see Item A in
+   *   plans/transient-whistling-fountain.md.
+   */
+  async startMonitoring(videoElement, { audioGranted = false } = {}) {
+    await this.frustrationEngine.init(videoElement, { audioGranted });
     this.frustrationEngine.start();
   }
 
   stopMonitoring() {
     this.frustrationEngine.stop();
+  }
+
+  /**
+   * Symmetric flip for the voice-hesitation arm. Used by RehabSessionShell
+   * when the patient grants audio permission after the camera was already
+   * live (e.g. partial-grant path where the user later enables the mic).
+   */
+  setVoiceMonitorActive(active) {
+    this.frustrationEngine.setVoiceMonitorActive(Boolean(active));
   }
 
   dispose() {
