@@ -1,4 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import BackButton, { backButtonStyle } from '../components/BackButton.jsx'
 import CameraMicConsentModal from '../components/CameraMicConsentModal.jsx'
 import NBackGame from './nback/NBackGame'
@@ -78,8 +79,10 @@ const SPEECH_GAME = {
  *   compatibility with the original RehabSessionShell call site in App.jsx.
  */
 export default function RehabSessionShell({ languageSymptomsFlagged: languageSymptomsFlaggedProp }) {
+  const navigate = useNavigate()
   const session = useSession()
   const patientId = session?.patientId
+  const { logout } = session
   const { engine, engineReady, engineError, languageSymptomsFlagged: engineLanguageFlag } = useSessionEngine()
 
   // Source of truth for the speech-game visibility flag is the server's
@@ -283,9 +286,14 @@ export default function RehabSessionShell({ languageSymptomsFlagged: languageSym
       <style>{cssVars}</style>
 
       {!activeGame && (
-        <BackButton to="/" style={{ ...styles.pageBackLink, marginBottom: '1.25rem' }}>
-          ← Back to home
-        </BackButton>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <BackButton to="/" style={styles.pageBackLink}>
+            ← Back to home
+          </BackButton>
+          <BackButton onClick={() => { logout(); navigate('/'); }} style={styles.pageBackLink}>
+            Log out
+          </BackButton>
+        </div>
       )}
 
       <header style={styles.pageHeader}>

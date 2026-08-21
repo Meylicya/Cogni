@@ -46,7 +46,7 @@ function summarizeSessions(sessions) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { clinicianId, loading: sessionLoading } = useSession();
+  const { clinicianId, loading: sessionLoading, logout } = useSession();
   const [patients, setPatients] = useState([]);
   const [sessionsByPatient, setSessionsByPatient] = useState({}); // { [patientId]: GameSession[] }
   const [isLoading, setIsLoading] = useState(true);
@@ -218,6 +218,14 @@ export default function Dashboard() {
             onClick={() => navigate('/clinician/invite-patient')}
           >
             + Invite New Patient
+          </button>
+
+          <button
+            className="harbor-btn"
+            style={{ background: '#fff', color: '#c5221f', border: '1px solid #CBD5E1', padding: '12px 24px', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}
+            onClick={() => { logout(); navigate('/'); }}
+          >
+            Log out
           </button>
         </div>
       </div>
