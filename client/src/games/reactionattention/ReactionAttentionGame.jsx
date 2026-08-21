@@ -88,16 +88,6 @@ export default function ReactionAttentionGame({ difficulty, onGameEvent }) {
           setSession(next)
           const event = buildSessionEvent(next)
           onGameEvent?.(event)
-          
-          // HACKATHON FIX: Get the active patient's ID and save the Reaction Game score!
-          const finalScore = Math.round(computeAccuracy(next) * 100);
-          const activePatientId = localStorage.getItem('demo_active_patient_id');
-          
-          if (activePatientId) {
-            localStorage.setItem(`game_${activePatientId}`, 'Go / No-Go');
-            localStorage.setItem(`score_${activePatientId}`, finalScore);
-          }
-
           return
         }
 
