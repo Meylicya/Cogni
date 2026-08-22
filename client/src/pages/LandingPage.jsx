@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useSession } from '../context/SessionContext.jsx'
 
 /**
  * LandingPage — front door of the app.
@@ -12,9 +14,72 @@ import { useNavigate } from 'react-router-dom'
  *
  * Caregivers still cannot self-register — login only, per
  * CaregiverAccessGrant.jsx's documented access-control design.
+ *
+ * The "Hackathon Demo" panel below is a deliberate bypass for the
+ * full invite + signup + login chain. The patient login bug (writing
+ * to `password` instead of `authCredentialHash`) leaves any patient
+ * record created before the fix with a null credential hash, which
+ * is unrecoverable without re-seeding. The demo panel hits a
+ * double-gated /api/demo/bootstrap endpoint that wipes the demo
+ * records and creates fresh ones with a known password, then logs
+ * the user straight in. See server/routes/demoBootstrap.js for the
+ * gate. The panel self-hides when the server is not in demo mode.
  */
 export default function LandingPage() {
   const navigate = useNavigate()
+  const { login } = useSession()
+  const [demoAvailable, setDemoAvailable] = useState(false)
+  const [demoStatus, setDemoStatus] = useState('')
+  const [demoBusy, setDemoBusy] = useState(false)
+
+  // Probe the demo endpoint once on mount. If the server is not in
+  // demo mode (or is unreachable), /api/demo/status returns 404 and
+  // we hide the whole panel so it doesn't look like a broken button.
+  useEffect(() => {
+    let cancelled = false
+    fetch('http://localhost:3001/api/demo/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        if (data && data.enabled) setDemoAvailable(true)
+      })
+      .catch(() => {
+        // Network error or server not in demo mode — leave hidden.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function runDemo(role) {
+    setDemoBusy(true)
+    setDemoStatus('Seeding demo records...')
+    try {
+      const res = await fetch('http://localhost:3001/api/demo/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (!res.ok) {
+        setDemoStatus('Demo unavailable — server is not in demo mode.')
+        setDemoBusy(false)
+        return
+      }
+      const data = await res.json()
+      const target = data[role]
+      if (!target || !target.id) {
+        setDemoStatus('Demo seed returned no user — check server logs.')
+        setDemoBusy(false)
+        return
+      }
+      login(role, target.id)
+      setDemoStatus(`Logged in as ${target.name}.`)
+      navigate(role === 'patient' ? '/games' : '/dashboard')
+    } catch (err) {
+      console.error('Demo bootstrap error:', err)
+      setDemoStatus('Could not reach the backend.')
+      setDemoBusy(false)
+    }
+  }
 
   return (
     <div style={styles.page}>
@@ -52,6 +117,38 @@ export default function LandingPage() {
           buttons={[{ text: 'Log in', kind: 'primary', onClick: () => navigate('/caregiver/login') }]}
         />
       </div>
+
+      {demoAvailable && (
+        <div style={styles.demoPanel}>
+          <div style={styles.demoHeader}>
+            <span style={styles.demoEyebrow}>Hackathon Demo</span>
+            <span style={styles.demoSubtitle}>
+              Skips invite/signup/login. Seeds a fresh demo patient and clinician, then logs you in.
+            </span>
+          </div>
+          <div style={styles.demoButtonRow}>
+            <button
+              type="button"
+              style={styles.demoButton}
+              onClick={() => runDemo('patient')}
+              disabled={demoBusy}
+            >
+              {demoBusy ? 'Working...' : 'Demo as Patient'}
+            </button>
+            <button
+              type="button"
+              style={styles.demoButton}
+              onClick={() => runDemo('clinician')}
+              disabled={demoBusy}
+            >
+              {demoBusy ? 'Working...' : 'Demo as Clinician'}
+            </button>
+          </div>
+          {demoStatus && (
+            <p style={styles.demoStatus}>{demoStatus}</p>
+          )}
+        </div>
+      )}
 
       <div style={styles.evidenceRow}>
         <a href="/evidence" style={styles.evidenceLink} onClick={(e) => { e.preventDefault(); navigate('/evidence') }}>
@@ -318,5 +415,59 @@ const styles = {
   inlineLink: {
     color: 'var(--harbor-teal)',
     fontWeight: 600,
+  },
+  // Hackathon demo panel — sits between the role grid and the
+  // evidence link. Self-hides when /api/demo/status 404s. The border
+  // color and label are intentionally louder than the role cards so
+  // it's obvious this is a backdoor, not a real auth path.
+  demoPanel: {
+    maxWidth: 640,
+    margin: '0 auto 1.75rem',
+    background: '#FFF7EE',
+    border: '1px dashed #D98E5B',
+    borderRadius: 14,
+    padding: '1.25rem 1.5rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  demoHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  demoEyebrow: {
+    fontSize: 11,
+    letterSpacing: '0.1em',
+    textTransform: 'uppercase',
+    color: '#D98E5B',
+    fontWeight: 700,
+  },
+  demoSubtitle: {
+    fontSize: 13,
+    color: '#4A5A64',
+    lineHeight: 1.5,
+  },
+  demoButtonRow: {
+    display: 'flex',
+    gap: 10,
+  },
+  demoButton: {
+    flex: 1,
+    background: '#D98E5B',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 10,
+    padding: '11px 16px',
+    fontSize: 14,
+    fontWeight: 600,
+    fontFamily: "'Work Sans', sans-serif",
+    cursor: 'pointer',
+  },
+  demoStatus: {
+    margin: 0,
+    fontSize: 13,
+    textAlign: 'center',
+    color: '#1E3A4C',
   },
 }

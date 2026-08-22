@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import apiRoutes from './routes/index.js';
+import demoBootstrapRoutes from './routes/demoBootstrap.js';
 
 
 const app = express();
@@ -18,6 +19,11 @@ app.get('/api/health', (req, res) => {
 
 // All other resource routes (like your working signup route), mounted under /api
 app.use('/api', apiRoutes);
+
+// Hackathon demo backdoor — double-gated inside the route file. Mounted
+// here (not from routes/index.js) so it's visibly separate from the
+// real auth surface. See server/routes/demoBootstrap.js for the gate.
+app.use('/api/demo', demoBootstrapRoutes);
 
 // Connect to your REAL database using your .env variable!
 mongoose.connect(process.env.MONGO_URI)

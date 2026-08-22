@@ -30,10 +30,6 @@ router.post('/invite', async (req, res) => {
       inviteToken,
     };
 
-    // Only override the schema defaults when the client actually sent a
-    // value — avoids accidental write of `undefined` over a meaningful
-    // existing field if this route ever gets reused to update existing
-    // records (it doesn't today, but defensive).
     if (Number.isInteger(difficultyTier) && difficultyTier >= 1 && difficultyTier <= 5) {
       patientFields.difficultyTier = difficultyTier;
     }
@@ -59,6 +55,13 @@ router.post('/invite', async (req, res) => {
 });
 
 // 2. ENDPOINT TO ACCEPT THE INVITE (Triggered by Patient clicking the link)
+//
+// BUGFIX: was writing to `patient.password`, a field that doesn't exist
+// on the Patient schema (only `authCredentialHash` does). Mongoose
+// silently drops undeclared fields on save, so the credential was never
+// actually persisted — every login then failed with "Invalid
+// credentials" no matter what the patient typed. Renamed to match the
+// schema field, same pattern clinicians.js/caregivers.js already use.
 router.post('/', async (req, res) => {
   try {
     const { name, password, inviteToken } = req.body;
@@ -70,7 +73,7 @@ router.post('/', async (req, res) => {
     }
 
     patient.name = name;
-    patient.password = password; // Note: In a production app, we would hash this with bcrypt!
+    patient.authCredentialHash = password; // Note: In a production app, we would hash this with bcrypt!
     patient.inviteToken = null;
     
     await patient.save();
@@ -89,7 +92,7 @@ router.post('/login', async (req, res) => {
 
     const patient = await Patient.findOne({ email });
 
-    if (!patient || !patient.password || patient.password !== password) {
+    if (!patient || !patient.authCredentialHash || patient.authCredentialHash !== password) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
