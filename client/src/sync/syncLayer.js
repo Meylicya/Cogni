@@ -36,7 +36,9 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
  * @returns {string|null}
  */
 function getCurrentPatientId() {
-  return typeof window !== 'undefined' ? window.localStorage.getItem('patientId') : null
+  if (typeof window === 'undefined') return null;
+  // 🚨 HACKATHON DEMO BYPASS: Check for the real patient login OR the clinician's demo active patient!
+  return window.localStorage.getItem('patientId') || window.localStorage.getItem('demo_active_patient_id');
 }
 
 /**

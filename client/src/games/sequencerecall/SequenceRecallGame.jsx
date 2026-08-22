@@ -88,6 +88,9 @@ export default function SequenceRecallGame({ difficulty, onGameEvent }) {
     if (next.phase === PHASES.COMPLETE) {
       const event = buildSessionEvent(next)
       onGameEvent?.(event)
+      
+      // Removed the local storage hack! 
+      // The onGameEvent bubble-up handles sending it to the real backend.
     }
   }
 

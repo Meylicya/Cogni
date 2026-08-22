@@ -13,10 +13,6 @@ const GAME_LABELS = {
   'speech-word-finding': 'Word Finding',
 };
 
-/**
- * Format a completion date for display.
- * @param {string|number|Date|undefined} value
- */
 function formatDate(value) {
   if (!value) return '—';
   const d = new Date(value);
@@ -24,10 +20,6 @@ function formatDate(value) {
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-/**
- * Compute dashboard summary metrics from a session list sorted newest-first.
- * Returns null when no sessions exist so the card can render an empty state.
- */
 function summarizeSessions(sessions) {
   if (!sessions || sessions.length === 0) return null;
   const latest = sessions[0];
@@ -48,7 +40,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { clinicianId, loading: sessionLoading, logout } = useSession();
   const [patients, setPatients] = useState([]);
-  const [sessionsByPatient, setSessionsByPatient] = useState({}); // { [patientId]: GameSession[] }
+  const [sessionsByPatient, setSessionsByPatient] = useState({}); 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -63,11 +55,6 @@ export default function Dashboard() {
 
     const fetchDashboardData = async () => {
       try {
-        // /clinicians/:id/patients is gated by server/middleware/requireAuth.js
-        // with resource='clinician-roster' — it returns only THIS clinician's
-        // roster, so we no longer need the client-side filter that the old
-        // /api/patients leak-and-filter approach used. The legacy
-        // /api/patients route is being deleted; this is its replacement.
         const response = await fetch(`${API_BASE}/api/clinicians/${clinicianId}/patients`, {
           headers: { ...getAuthHeaders() },
         });
@@ -77,11 +64,6 @@ export default function Dashboard() {
         const myPatients = await response.json();
         setPatients(myPatients);
 
-        // Fan out one session fetch per patient. Each
-        // /api/game-sessions/patient/:id is gated by requireAuth({ resource:
-        // 'patient-scores' }), so the clinician token authenticates against
-        // the allow-list that checks "this patient is owned by this
-        // clinician" (see server/middleware/requireAuth.js).
         const sessionResults = await Promise.all(
           myPatients.map(async (p) => {
             try {
@@ -108,8 +90,8 @@ export default function Dashboard() {
     fetchDashboardData();
   }, [clinicianId, sessionLoading, navigate]);
 
-  // THE PRO PDF EXPORT FUNCTION
-  const exportPDF = async (patientId, patientName, patientEmail, summary) => {
+  // REAL DATA PDF EXPORT
+  const exportPDF = async (patientId, patientName, patientEmail, sessions) => {
     setIsExporting(true);
 
     try {
@@ -133,27 +115,31 @@ export default function Dashboard() {
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(16);
       pdf.setTextColor(100);
-      pdf.text("Latest Cognitive Metrics", 20, 75);
+      pdf.text("Historical Cognitive Metrics", 20, 75);
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(12);
       pdf.setTextColor(0);
 
-      if (summary) {
-        const accuracyPct = Math.round(summary.latestAccuracy * 100);
-        const avgAccuracyPct = Math.round(summary.avgAccuracy * 100);
-        const latencySec = (summary.latestLatencyMs / 1000).toFixed(2);
+      let yPosition = 85;
 
-        pdf.text(`Most Recent Game: ${summary.latestGameLabel}`, 20, 85);
-        pdf.text(`Most Recent Score: ${accuracyPct}% accuracy`, 20, 92);
-        pdf.text(`Most Recent Latency: ${latencySec}s avg response`, 20, 99);
-        pdf.text(`Most Recent Difficulty: Tier ${summary.latestDifficultyLevel} / 5`, 20, 106);
-        pdf.text(`Total Sessions Logged: ${summary.sessionCount}`, 20, 113);
-        pdf.text(`Average Accuracy: ${avgAccuracyPct}%`, 20, 120);
-        pdf.text(`Last Played: ${formatDate(summary.latestCompletedAt)}`, 20, 127);
+      if (!sessions || sessions.length === 0) {
+        pdf.text("No session data recorded yet.", 20, yPosition);
       } else {
-        pdf.text(`Most Recent Game: No sessions yet`, 20, 85);
-        pdf.text(`Overall Score: —`, 20, 92);
+        // Reverse so the oldest is at the top, or keep it newest-first. 
+        // Real DB data is already sorted newest-first by the backend.
+        sessions.forEach((s) => {
+          if (yPosition > 270) {
+            pdf.addPage();
+            yPosition = 20;
+          }
+          const gameName = GAME_LABELS[s.gameId] || s.gameId;
+          const scorePct = Math.round((s.accuracy ?? 0) * 100);
+          const dateStr = formatDate(s.completedAt);
+          
+          pdf.text(`• ${dateStr} — Task: ${gameName} | Score: ${scorePct}%`, 20, yPosition);
+          yPosition += 8; 
+        });
       }
 
       pdf.setFontSize(10);
@@ -203,7 +189,6 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* HACKATHON UX FIX: Added a button group for all clinician actions! */}
         <div style={{ display: 'flex', gap: '1rem' }}>
           <button
             className="harbor-btn"
@@ -257,11 +242,7 @@ export default function Dashboard() {
               const savedLocalName = localStorage.getItem(`patient_name_${patient.email}`);
               const displayName = patient.name || patient.fullName || savedLocalName || 'Registered Patient';
 
-              // Real session data: sessions are sorted newest-first by the
-              // server (see server/routes/gameSessions.js). Empty array
-              // means the patient exists but hasn't logged a session yet,
-              // which is a valid state — the card renders an empty-state
-              // rather than faking numbers from localStorage.
+              // FETCH PURE BACKEND SESSIONS
               const sessions = sessionsByPatient[patient._id] || [];
               const summary = summarizeSessions(sessions);
 
@@ -331,15 +312,15 @@ export default function Dashboard() {
                   <button
                     className="harbor-btn"
                     style={{ marginTop: 'auto', background: '#F1F5F9', color: '#1E3A4C', width: '100%', border: '1px solid #CBD5E1', display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center' }}
-                    onClick={() => exportPDF(patient._id, displayName, patient.email, summary)}
-                    disabled={isExporting}
+                    onClick={() => exportPDF(patient._id, displayName, patient.email, sessions)}
+                    disabled={isExporting || sessions.length === 0}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                       <polyline points="7 10 12 15 17 10"></polyline>
                       <line x1="12" y1="15" x2="12" y2="3"></line>
                     </svg>
-                    {isExporting ? 'Generating...' : 'Download Report (PDF)'}
+                    {isExporting ? 'Generating...' : `Download Report (${sessions.length} logs)`}
                   </button>
                 </div>
               );
