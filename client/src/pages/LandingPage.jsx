@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSession } from '../context/SessionContext.jsx'
+import cogniLogo from './congiLogo.png'
 
 /**
  * LandingPage — front door of the app.
@@ -86,6 +87,9 @@ export default function LandingPage() {
       <style>{cssVars}</style>
 
       <div style={styles.hero}>
+        <div style={styles.logoSlot} aria-label="Cogni logo placeholder">
+          <CogniLogoPlaceholder />
+        </div>
         <span style={styles.eyebrow}>Cogni</span>
         <h1 style={styles.heading}>Recovery, one step at a time.</h1>
         <p style={styles.subheading}>
@@ -215,6 +219,18 @@ function InfoCard({ eyebrow, title, description }) {
   )
 }
 
+function CogniLogoPlaceholder() {
+  return (
+    <img
+      src={cogniLogo}
+      alt="Cogni logo"
+      width="200"
+      height="100"
+      style={{ display: 'block' }}
+    />
+  )
+}
+
 // Small nautical-adjacent line icons — restrained, matches the "Harbor" name
 // without leaning on generic person/avatar glyphs for every role.
 function PatientIcon() {
@@ -261,6 +277,22 @@ const styles = {
     maxWidth: 640,
     margin: '0 auto 2.5rem',
     textAlign: 'center',
+  },
+  // Fixed-size slot reserved for the Cogni logo. Drop the real <img>
+  // (or your own SVG) into the <div style={styles.logoSlot}> block
+  // in the hero — the size is locked so the eyebrow/heading below
+  // don't reflow when the asset is swapped in.
+  logoSlot: {
+    width: 96,
+    height: 96,
+    margin: '0 auto 1.25rem',
+    borderRadius: '50%',
+    background: '#fff',
+    border: '1px dashed #B6C7CE',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
   eyebrow: {
     display: 'block',
@@ -420,9 +452,11 @@ const styles = {
   // evidence link. Self-hides when /api/demo/status 404s. The border
   // color and label are intentionally louder than the role cards so
   // it's obvious this is a backdoor, not a real auth path.
+  // margin-top is generous so the panel reads as a clearly separate
+  // section rather than another card on the same row.
   demoPanel: {
     maxWidth: 640,
-    margin: '0 auto 1.75rem',
+    margin: '3.5rem auto 1.75rem',
     background: '#FFF7EE',
     border: '1px dashed #D98E5B',
     borderRadius: 14,

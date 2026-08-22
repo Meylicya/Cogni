@@ -90,7 +90,7 @@ export default function CaregiverAcceptInvite() {
         ← Back to home
       </BackButton>
       <div style={styles.header}>
-        <h2 style={styles.heading}>Welcome to Harbor</h2>
+        <h2 style={styles.heading}>Welcome to Cogni</h2>
         <p style={styles.subheading}>Confirm your name and set a password.</p>
       </div>
 

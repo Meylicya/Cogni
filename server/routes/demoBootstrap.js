@@ -38,15 +38,15 @@ const DEMO_PASSWORD = 'demo1234';
 // demo record before re-inserting, so repeat clicks during one demo
 // run don't trip the unique-email index.
 const DEMO_CLINICIAN = {
-  email: 'demo.clinician@harbor.dev',
+  email: 'demo.clinician@cogni.dev',
   name: 'Dr. Demo Clinician',
 };
 const DEMO_PATIENT = {
-  email: 'demo.patient@harbor.dev',
+  email: 'demo.patient@cogni.dev',
   name: 'Demo Patient',
 };
 const DEMO_CAREGIVER = {
-  email: 'demo.caregiver@harbor.dev',
+  email: 'demo.caregiver@cogni.dev',
   name: 'Demo Caregiver',
 };
 
@@ -55,7 +55,7 @@ const DEMO_CAREGIVER = {
 // reveal that the endpoint exists).
 const GATED_OUT = { message: 'Not found' };
 
-router.post('/bootstrap', async (req, res) => {
+router.post('/bootstrap', async (_req, res) => {
   if (!demoEnabled()) return res.status(404).json(GATED_OUT);
 
   try {
@@ -108,7 +108,7 @@ router.post('/bootstrap', async (req, res) => {
 // the demo panel at all (avoids surfacing a button that 404s when the
 // server isn't running the demo build). Also gated, so it returns 404
 // in prod just like /bootstrap.
-router.get('/status', (req, res) => {
+router.get('/status', (_req, res) => {
   if (!demoEnabled()) return res.status(404).json(GATED_OUT);
   return res.json({ enabled: true });
 });
