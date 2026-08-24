@@ -5,6 +5,27 @@ import BackButton from '../../components/BackButton.jsx';
 import { useSession } from '../../context/SessionContext.jsx';
 import { getAuthHeaders } from '../../sync/authHeaders.js';
 
+/**
+ * The original clinician flow was ClinicianOnboarding → IntakeForm →
+ * PatientInvite. The dashboard shortcuts past intake, which silently
+ * downgrades invited patients to the server's default tier.
+ *
+ * This helper re-inserts intake as a gateway: if the current clinician
+ * hasn't completed it yet, "invite a patient" routes through /clinician/intake
+ * first with returnTo wired up so the form knows where to land next.
+ */
+function intakeCompleteKey(clinicianId) {
+  return `clinicianIntakeComplete_${clinicianId}`;
+}
+
+function goToInvite(navigate, clinicianId) {
+  if (!clinicianId || localStorage.getItem(intakeCompleteKey(clinicianId)) === 'true') {
+    navigate('/clinician/invite-patient');
+  } else {
+    navigate('/clinician/intake', { state: { returnTo: '/clinician/invite-patient' } });
+  }
+}
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 const GAME_LABELS = {
   'n-back': 'N-Back',
@@ -200,7 +221,7 @@ export default function Dashboard() {
 
           <button
             className="harbor-btn harbor-btn-dark"
-            onClick={() => navigate('/clinician/invite-patient')}
+            onClick={() => goToInvite(navigate, clinicianId)}
           >
             + Invite New Patient
           </button>
@@ -232,7 +253,7 @@ export default function Dashboard() {
             <div className="harbor-card" style={{ padding: '3rem', textAlign: 'center', gridColumn: '1 / -1' }}>
               <h3 style={{ color: '#1E3A4C', marginBottom: '1rem' }}>No Active Patients</h3>
               <p style={{ color: '#5B8A9A', marginBottom: '1.5rem' }}>You haven't invited any patients yet, or they haven't accepted their magic links.</p>
-              <button className="harbor-btn harbor-btn-dark" onClick={() => navigate('/clinician/invite-patient')}>
+              <button className="harbor-btn harbor-btn-dark" onClick={() => goToInvite(navigate, clinicianId)}>
                 Send First Invite
               </button>
             </div>
