@@ -16,6 +16,13 @@ import { useSession } from '../../context/SessionContext.jsx';
  * flag. Missing state (clinician navigated here directly without doing
  * the intake first) is treated the same as before — server defaults
  * kick in and the clinician can re-run intake later.
+ *
+ * The injury date and per-invite safety-gate check used to live here.
+ * They've been removed: intake is the single source of truth for injury
+ * timing, and the safety gate runs once in IntakeForm via
+ * utils/safetyGate.js. A clinician who skips intake (or runs the dashboard
+ * gateway for a second patient without re-doing intake) bypasses the gate
+ * by design — that's a tradeoff the team accepted when moving the field.
  */
 export default function PatientInvite() {
   const { clinicianId } = useSession();
@@ -25,25 +32,11 @@ export default function PatientInvite() {
   const [patientEmail, setPatientEmail] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [injuryTiming, setInjuryTiming] = useState('');
 
   const handleInvite = async (e) => {
     e.preventDefault();
     setIsSending(true);
     setStatusMessage('Generating magic link and sending email...');
-
-    // HACKATHON SAFETY GATE: Block patients in the acute phase!
-    if (injuryTiming === 'acute') {
-      setStatusMessage('⚠️ SAFETY GATE ACTIVATED: Patient is within 48 hours of injury. Cognitive rehabilitation is strictly contraindicated during the acute phase. Please prescribe rest and re-evaluate later.');
-      setIsSending(false);
-      return;
-    }
-
-    if (!injuryTiming) {
-      setStatusMessage('Please select the patient\'s injury timing.');
-      setIsSending(false);
-      return;
-    }
 
     // Pull the active clinicianId from SessionContext — the same value
     // the clinician login wrote. If it's missing, the route guard on
@@ -82,7 +75,6 @@ export default function PatientInvite() {
         setStatusMessage(`Success! An invite email has been sent to ${patientEmail}.`);
         setPatientName('');
         setPatientEmail('');
-        setInjuryTiming(''); // Reset the dropdown on success
       } else {
         const errorData = await response.json();
         setStatusMessage(`Failed to send invite: ${errorData.message}`);
@@ -110,15 +102,15 @@ export default function PatientInvite() {
       </div>
 
       <form onSubmit={handleInvite} className="harbor-card harbor-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem', padding: '2rem' }}>
-        
+
         <div className="harbor-field">
           <label className="harbor-label">Patient Name</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             className="harbor-input"
-            value={patientName} 
-            onChange={(e) => setPatientName(e.target.value)} 
-            required 
+            value={patientName}
+            onChange={(e) => setPatientName(e.target.value)}
+            required
             placeholder="John Doe"
             disabled={isSending}
           />
@@ -126,37 +118,20 @@ export default function PatientInvite() {
 
         <div className="harbor-field">
           <label className="harbor-label">Patient Email</label>
-          <input 
-            type="email" 
+          <input
+            type="email"
             className="harbor-input"
-            value={patientEmail} 
-            onChange={(e) => setPatientEmail(e.target.value)} 
-            required 
+            value={patientEmail}
+            onChange={(e) => setPatientEmail(e.target.value)}
+            required
             placeholder="john.doe@example.com"
             disabled={isSending}
           />
         </div>
 
-        <div className="harbor-field">
-          <label className="harbor-label">Time Since Concussion/Injury</label>
-          <select 
-            className="harbor-input"
-            value={injuryTiming}
-            onChange={(e) => setInjuryTiming(e.target.value)}
-            disabled={isSending}
-            required
-            style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1' }}
-          >
-            <option value="" disabled>Select injury timing...</option>
-            <option value="acute">Less than 48 hours (Acute Phase)</option>
-            <option value="subacute">3 to 7 days</option>
-            <option value="chronic">More than 1 week</option>
-          </select>
-        </div>
-
-        <button 
-          type="submit" 
-          className="harbor-btn harbor-btn-dark" 
+        <button
+          type="submit"
+          className="harbor-btn harbor-btn-dark"
           style={{ marginTop: 4, opacity: isSending ? 0.7 : 1 }}
           disabled={isSending}
         >
@@ -164,12 +139,12 @@ export default function PatientInvite() {
         </button>
 
         {statusMessage && (
-          <p style={{ 
-            marginTop: '1rem', 
-            fontSize: 14, 
-            textAlign: 'center', 
-            fontWeight: 'bold', 
-            color: statusMessage.includes('Success') ? 'green' : '#D98E5B' 
+          <p style={{
+            marginTop: '1rem',
+            fontSize: 14,
+            textAlign: 'center',
+            fontWeight: 'bold',
+            color: statusMessage.includes('Success') ? 'green' : '#D98E5B'
           }}>
             {statusMessage}
           </p>

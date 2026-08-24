@@ -6,24 +6,16 @@ import { useSession } from '../../context/SessionContext.jsx';
 import { getAuthHeaders } from '../../sync/authHeaders.js';
 
 /**
- * The original clinician flow was ClinicianOnboarding → IntakeForm →
- * PatientInvite. The dashboard shortcuts past intake, which silently
- * downgrades invited patients to the server's default tier.
- *
- * This helper re-inserts intake as a gateway: if the current clinician
- * hasn't completed it yet, "invite a patient" routes through /clinician/intake
- * first with returnTo wired up so the form knows where to land next.
+ * The clinician fills the intake for EACH new patient they invite,
+ * not once for themselves. So every "invite a patient" click from the
+ * dashboard routes through /clinician/intake first, and the computed
+ * tier + language flag travel via location.state into PatientInvite,
+ * which forwards them into the POST /api/patients/invite payload so
+ * each patient gets their own baseline — not whatever the previous
+ * patient's intake produced.
  */
-function intakeCompleteKey(clinicianId) {
-  return `clinicianIntakeComplete_${clinicianId}`;
-}
-
-function goToInvite(navigate, clinicianId) {
-  if (!clinicianId || localStorage.getItem(intakeCompleteKey(clinicianId)) === 'true') {
-    navigate('/clinician/invite-patient');
-  } else {
-    navigate('/clinician/intake', { state: { returnTo: '/clinician/invite-patient' } });
-  }
+function goToInvite(navigate) {
+  navigate('/clinician/intake', { state: { returnTo: '/clinician/invite-patient' } });
 }
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
@@ -221,7 +213,7 @@ export default function Dashboard() {
 
           <button
             className="harbor-btn harbor-btn-dark"
-            onClick={() => goToInvite(navigate, clinicianId)}
+            onClick={() => goToInvite(navigate)}
           >
             + Invite New Patient
           </button>
@@ -253,7 +245,7 @@ export default function Dashboard() {
             <div className="harbor-card" style={{ padding: '3rem', textAlign: 'center', gridColumn: '1 / -1' }}>
               <h3 style={{ color: '#1E3A4C', marginBottom: '1rem' }}>No Active Patients</h3>
               <p style={{ color: '#5B8A9A', marginBottom: '1.5rem' }}>You haven't invited any patients yet, or they haven't accepted their magic links.</p>
-              <button className="harbor-btn harbor-btn-dark" onClick={() => goToInvite(navigate, clinicianId)}>
+              <button className="harbor-btn harbor-btn-dark" onClick={() => goToInvite(navigate)}>
                 Send First Invite
               </button>
             </div>

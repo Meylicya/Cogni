@@ -5,17 +5,13 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { checkSafetyGate } from '../../utils/safetyGate';
 import Modal from '../../components/Modal.jsx';
 import BackButton from '../../components/BackButton.jsx';
-import { useSession } from '../../context/SessionContext.jsx';
-
-const INTAKE_COMPLETE_KEY_PREFIX = 'clinicianIntakeComplete_';
 
 export default function IntakeForm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { clinicianId } = useSession();
-  // If we got here from the dashboard's "Send First Invite" gateway,
-  // land on the invite form after a successful intake. Otherwise
-  // (signup flow) keep the original behavior.
+  // Intake runs once per patient invite. The dashboard always routes
+  // through here, so returnTo is always set, but fall back to the
+  // invite route in case someone navigates directly.
   const returnTo = location.state?.returnTo || '/clinician/invite-patient';
 
   const [injuryDate, setInjuryDate] = useState('');
@@ -52,9 +48,6 @@ export default function IntakeForm() {
   };
 
   function handleContinueToInvite() {
-    if (clinicianId) {
-      localStorage.setItem(`${INTAKE_COMPLETE_KEY_PREFIX}${clinicianId}`, 'true');
-    }
     navigate(returnTo, {
       state: {
         languageSymptomsFlagged: languageDifficulty,
